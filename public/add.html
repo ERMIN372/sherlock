@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>Sherlock — Add me</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="dot">🔎</span> sherlock</div>
+      <nav class="nav">
+        <a href="/">Search</a>
+        <a href="/add.html" class="active">Add me</a>
+      </nav>
+    </div>
+
+    <section class="hero">
+      <h1>Add yourself to the index</h1>
+      <p>Opt in so others can find your <strong>public</strong> profile by your face. You can remove yourself anytime.</p>
+    </section>
+
+    <div class="card" id="formCard">
+      <div class="drop" id="drop">
+        <div class="emoji">🤳</div>
+        <strong>Add a clear photo of your face</strong>
+        <div class="hint">front-facing, good lighting, just you</div>
+      </div>
+      <input type="file" id="file" accept="image/*" class="hidden" />
+
+      <div class="preview" id="preview">
+        <img id="previewImg" alt="preview" />
+        <div class="face-status busy" id="faceStatus">Detecting face…</div>
+      </div>
+
+      <label class="field" for="name">Display name</label>
+      <input class="text" id="name" type="text" placeholder="e.g. Alex Carter" maxlength="80" />
+
+      <label class="field" for="url">Public profile link (optional)</label>
+      <input class="text" id="url" type="url" placeholder="https://…" maxlength="300" />
+
+      <label class="consent">
+        <input type="checkbox" id="consent" />
+        <span>I confirm this is <strong>my own</strong> face and I consent to it being searchable. I understand I can remove it anytime.</span>
+      </label>
+
+      <button class="btn yellow" id="submitBtn" disabled>Add me to the index</button>
+    </div>
+
+    <div class="card hidden" id="successCard" style="text-align:center;">
+      <div style="font-size:42px">✅</div>
+      <h2 style="margin:8px 0">You're searchable!</h2>
+      <p style="color:var(--muted)" id="successName"></p>
+      <button class="btn ghost" id="removeBtn">Remove me</button>
+      <a class="open" href="/"><button class="btn" style="margin-top:10px">Try a search</button></a>
+    </div>
+
+    <p class="note">Your face descriptor and photo are stored only to let people who search for you find your chosen profile.</p>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="/js/vendor/face-api.js"></script>
+  <script src="/js/face.js"></script>
+  <script src="/js/add.js"></script>
+</body>
+</html>

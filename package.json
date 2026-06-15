@@ -1,0 +1,14 @@
+{
+  "name": "sherlock-web",
+  "version": "1.0.0",
+  "description": "Consent-based face search web app (opt-in). Find voluntarily-added public profiles by a face photo.",
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
