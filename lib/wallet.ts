@@ -31,8 +31,12 @@ export function cookieValueFor(id: string): string {
 function parseCookieValue(value: string): string | null {
   const key = secret();
   if (!key) return value || null;
-  const [id, sig] = value.split(".");
-  if (!id || !sig) return null;
+  // Подпись — hex без точек, идёт последней; id (например, email) может
+  // содержать точки, поэтому делим по ПОСЛЕДНЕЙ точке, а не по первой.
+  const idx = value.lastIndexOf(".");
+  if (idx <= 0) return null;
+  const id = value.slice(0, idx);
+  const sig = value.slice(idx + 1);
   const expected = sign(id, key);
   const a = Buffer.from(sig);
   const b = Buffer.from(expected);
