@@ -58,6 +58,34 @@ npm run build && npm start
 | `RATE_LIMIT_MAX` | Макс. запросов в окне на один IP | `10` |
 | `RATE_LIMIT_WINDOW_MS` | Длина окна rate limit (мс) | `60000` |
 
+## Деплой
+
+### Vercel (рекомендуется)
+```bash
+npm i -g vercel
+vercel            # первый деплой
+vercel --prod     # прод
+```
+В дашборде → Settings → Environment Variables добавь `FACE_SEARCH_PROVIDER=facecheck`
+и `FACECHECK_API_TOKEN=...`.
+
+### Docker (self-host)
+```bash
+docker build -t sherlock .
+docker run -p 3000:3000 \
+  -e FACE_SEARCH_PROVIDER=facecheck \
+  -e FACECHECK_API_TOKEN=твой_токен \
+  sherlock
+```
+Сборка использует `output: "standalone"` — образ минимальный.
+
+### Проверка работоспособности
+- `GET /api/health` — показывает активный провайдер (без утечки токена).
+- Smoke-тест всех эндпоинтов:
+```bash
+BASE_URL=https://твой-домен npm run smoke
+```
+
 ## Допустимое использование
 
 Инструмент предназначен только для законного и авторизованного использования

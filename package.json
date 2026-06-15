@@ -3,15 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "description": "Sherlock: AI Face Search — web MVP",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "smoke": "node scripts/smoke-test.mjs"
   },
   "dependencies": {
-    "next": "15.1.6",
+    "next": "15.5.19",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-easy-crop": "^5.4.1"
