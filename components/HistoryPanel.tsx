@@ -1,39 +1,41 @@
 "use client";
 
 import type { HistoryEntry } from "@/lib/clientTypes";
+import { useI18n } from "@/lib/i18n";
 
 interface Props {
   history: HistoryEntry[];
   onClear: () => void;
 }
 
-function timeAgo(ts: number): string {
+function timeAgo(ts: number, t: (key: string, p?: Record<string, string | number>) => string): string {
   const s = Math.floor((Date.now() - ts) / 1000);
-  if (s < 60) return "just now";
+  if (s < 60) return t("time.justNow");
   const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
+  if (m < 60) return t("time.minutes", { n: m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
+  if (h < 24) return t("time.hours", { n: h });
+  return t("time.days", { n: Math.floor(h / 24) });
 }
 
 export default function HistoryPanel({ history, onClear }: Props) {
+  const { t, plural } = useI18n();
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-white/80">Search history</h3>
+        <h3 className="text-sm font-semibold text-white/80">{t("history.title")}</h3>
         {history.length > 0 && (
           <button
             onClick={onClear}
             className="text-xs text-white/50 transition hover:text-rose-300"
           >
-            Clear
+            {t("history.clear")}
           </button>
         )}
       </div>
 
       {history.length === 0 ? (
-        <p className="text-sm text-white/40">No searches yet.</p>
+        <p className="text-sm text-white/40">{t("history.empty")}</p>
       ) : (
         <ul className="space-y-2">
           {history.map((h) => (
@@ -49,14 +51,14 @@ export default function HistoryPanel({ history, onClear }: Props) {
               />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm">
-                  {h.resultCount} result{h.resultCount === 1 ? "" : "s"}
+                  {h.resultCount} {plural(h.resultCount, "results.plural")}
                   {h.topScore != null && (
-                    <span className="text-white/50"> · top {h.topScore}%</span>
+                    <span className="text-white/50">{t("history.top", { n: h.topScore })}</span>
                   )}
                 </p>
                 <p className="text-xs text-white/40">
-                  {timeAgo(h.date)}
-                  {h.demo && " · demo"}
+                  {timeAgo(h.date, t)}
+                  {h.demo && t("history.demo")}
                 </p>
               </div>
             </li>
@@ -64,8 +66,7 @@ export default function HistoryPanel({ history, onClear }: Props) {
         </ul>
       )}
       <p className="mt-3 text-[11px] leading-relaxed text-white/30">
-        History is stored only in your browser. Uploaded photos are never kept
-        on our servers.
+        {t("history.note")}
       </p>
     </div>
   );

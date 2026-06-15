@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useI18n } from "@/lib/i18n";
 
 interface Pack {
   id: string;
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export default function BuyCreditsModal({ open, onClose, onPurchased }: Props) {
+  const { t } = useI18n();
   const [packs, setPacks] = useState<Pack[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -25,8 +27,8 @@ export default function BuyCreditsModal({ open, onClose, onPurchased }: Props) {
     fetch("/api/payment")
       .then((r) => r.json())
       .then((d) => setPacks(d.packs || []))
-      .catch(() => setError("Could not load credit packs."));
-  }, [open]);
+      .catch(() => setError(t("buy.loadError")));
+  }, [open, t]);
 
   if (!open) return null;
 
@@ -41,12 +43,12 @@ export default function BuyCreditsModal({ open, onClose, onPurchased }: Props) {
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        throw new Error(data.error || "Payment failed");
+        throw new Error(data.error || t("buy.payError"));
       }
       onPurchased(data.granted as number);
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Payment failed");
+      setError(e instanceof Error ? e.message : t("buy.payError"));
     } finally {
       setBusy(null);
     }
@@ -62,14 +64,12 @@ export default function BuyCreditsModal({ open, onClose, onPurchased }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-1 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Get more credits</h2>
+          <h2 className="text-lg font-semibold">{t("buy.title")}</h2>
           <button onClick={onClose} className="text-white/50 hover:text-white">
             ✕
           </button>
         </div>
-        <p className="mb-4 text-sm text-white/50">
-          Each search costs 1 credit. Pick a pack below.
-        </p>
+        <p className="mb-4 text-sm text-white/50">{t("buy.subtitle")}</p>
 
         <div className="space-y-3">
           {packs.map((p) => (
@@ -81,12 +81,12 @@ export default function BuyCreditsModal({ open, onClose, onPurchased }: Props) {
             >
               <div>
                 <p className="font-semibold">{p.label}</p>
-                <p className="text-sm text-white/50">{p.credits} credits</p>
+                <p className="text-sm text-white/50">{t("buy.credits", { n: p.credits })}</p>
               </div>
               <div className="text-right">
                 <p className="font-semibold text-indigo-300">${p.price}</p>
                 {busy === p.id && (
-                  <p className="text-xs text-white/40">Processing…</p>
+                  <p className="text-xs text-white/40">{t("buy.processing")}</p>
                 )}
               </div>
             </button>
@@ -96,8 +96,7 @@ export default function BuyCreditsModal({ open, onClose, onPurchased }: Props) {
         {error && <p className="mt-3 text-sm text-rose-400">{error}</p>}
 
         <p className="mt-4 rounded-lg bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-200/80">
-          Demo checkout — no real payment is processed. Credits are granted
-          instantly for demonstration purposes.
+          {t("buy.demoNote")}
         </p>
       </div>
     </div>
