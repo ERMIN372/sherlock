@@ -5,6 +5,7 @@ import UploadCropper from "@/components/UploadCropper";
 import Results from "@/components/Results";
 import HistoryPanel from "@/components/HistoryPanel";
 import BuyCreditsModal from "@/components/BuyCreditsModal";
+import AuthModal from "@/components/AuthModal";
 import AcceptableUseGate from "@/components/AcceptableUseGate";
 import LanguageToggle from "@/components/LanguageToggle";
 import { useLocalState } from "@/lib/useLocalState";
@@ -27,7 +28,12 @@ export default function Home() {
   const { t } = useI18n();
 
   // Баланс хранится на сервере; здесь — только отображаемое число поисков.
+  // null = серверный учёт отключён (без KV) → без ограничения («∞»).
   const [searches, setSearches] = useState<number | null>(null);
+  const [walletLoaded, setWalletLoaded] = useState(false);
+  const [accounting, setAccounting] = useState(false);
+  const [email, setEmail] = useState<string | null>(null);
+  const [showAuth, setShowAuth] = useState(false);
   const [history, setHistory] = useLocalState<HistoryEntry[]>("sherlock_history", []);
   const [accepted, setAccepted, acceptedReady] = useLocalState<boolean>(
     "sherlock_accepted_use",
@@ -50,12 +56,24 @@ export default function Home() {
   const refreshWallet = useCallback(async () => {
     try {
       const res = await fetch("/api/wallet");
-      const data = (await res.json()) as { searches?: number };
-      if (typeof data.searches === "number") setSearches(data.searches);
+      const data = (await res.json()) as {
+        searches?: number | null;
+        accounting?: boolean;
+        email?: string | null;
+      };
+      setSearches(typeof data.searches === "number" ? data.searches : null);
+      setAccounting(Boolean(data.accounting));
+      setEmail(data.email ?? null);
+      setWalletLoaded(true);
     } catch {
       /* offline — оставим как есть */
     }
   }, []);
+
+  const logout = useCallback(async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    await refreshWallet();
+  }, [refreshWallet]);
 
   // Загрузка/создание кошелька при старте (ставит httpOnly-куку).
   useEffect(() => {
@@ -225,6 +243,15 @@ export default function Home() {
         onClose={() => setShowBuy(false)}
         onPurchased={(s) => setSearches(s)}
       />
+      <AuthModal
+        open={showAuth}
+        onClose={() => setShowAuth(false)}
+        onAuthed={(e, s) => {
+          setEmail(e);
+          setSearches(s);
+          setShowAuth(false);
+        }}
+      />
 
       {/* Header */}
       <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
@@ -239,7 +266,7 @@ export default function Home() {
           <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm">
             <span className="text-white/50">{t("searches.label")}</span>{" "}
             <span className="font-semibold text-indigo-300">
-              {searches === null ? "…" : searches}
+              {!walletLoaded ? "…" : searches === null ? "∞" : searches}
             </span>
           </div>
           <button
@@ -248,6 +275,27 @@ export default function Home() {
           >
             {t("buyCredits")}
           </button>
+          {accounting &&
+            (email ? (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="hidden max-w-[140px] truncate text-white/60 sm:inline">
+                  {email}
+                </span>
+                <button
+                  onClick={logout}
+                  className="rounded-xl border border-white/15 px-3 py-2 font-medium text-white/80 transition hover:bg-white/5"
+                >
+                  {t("auth.logout")}
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowAuth(true)}
+                className="rounded-xl border border-white/15 px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/5"
+              >
+                {t("auth.login")}
+              </button>
+            ))}
         </div>
       </header>
 

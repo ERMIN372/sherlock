@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPaymentProvider } from "@/lib/payments";
 import { addCredits, balanceSearches, getWalletId, markPaidOnce } from "@/lib/wallet";
+import { kvConfigured } from "@/lib/kv";
 
 export const runtime = "nodejs";
 
@@ -21,18 +22,19 @@ export async function GET(req: Request) {
     return NextResponse.json({ paid: false, error: "Payments not configured." }, { status: 400 });
   }
 
-  const cookieWallet = getWalletId(req);
+  const accounting = kvConfigured();
+  const cookieWallet = accounting ? getWalletId(req) : null;
 
   try {
     const result = await provider.verify(id);
-    if (result.paid && result.credits > 0) {
+    if (accounting && result.paid && result.credits > 0) {
       // Начисляем кошельку из платежа (или текущему, если в metadata пусто).
       const target = result.walletId || cookieWallet;
       if (target && (await markPaidOnce(id))) {
         await addCredits(target, result.credits);
       }
     }
-    const searches = cookieWallet ? await balanceSearches(cookieWallet) : 0;
+    const searches = accounting && cookieWallet ? await balanceSearches(cookieWallet) : null;
     return NextResponse.json({ paid: result.paid, searches });
   } catch (err) {
     console.error("verify failed:", err);

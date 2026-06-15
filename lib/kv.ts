@@ -104,5 +104,7 @@ export function kv(): KvStore {
 }
 
 export function kvConfigured(): boolean {
-  return Boolean(kvUrl() && kvToken());
+  // KV_FORCE_MEMORY=1 включает серверный учёт на in-memory сторе (для локали/тестов;
+  // НЕ для прод-serverless, где инстансы не разделяют память).
+  return Boolean((kvUrl() && kvToken()) || process.env.KV_FORCE_MEMORY === "1");
 }

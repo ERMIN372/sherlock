@@ -19,7 +19,8 @@ function formatPrice(price: number, currency: "rub" | "usd"): string {
 interface Props {
   open: boolean;
   onClose: () => void;
-  onPurchased: (credits: number) => void;
+  /** Новый баланс поисков (или null, если серверный учёт отключён). */
+  onPurchased: (searches: number | null) => void;
 }
 
 export default function BuyCreditsModal({ open, onClose, onPurchased }: Props) {
@@ -66,7 +67,7 @@ export default function BuyCreditsModal({ open, onClose, onPurchased }: Props) {
 
       // Демо-фолбэк — кредиты начислены на сервере, обновляем баланс поисков.
       setBusy(null);
-      onPurchased(data.searches as number);
+      onPurchased((data.searches ?? null) as number | null);
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("buy.payError"));
