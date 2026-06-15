@@ -16,8 +16,10 @@ type Dict = Record<string, string>;
 
 const en: Dict = {
   "app.tagline": "AI Face Search across public web sources",
-  "credits.label": "Credits",
-  "buyCredits": "Buy credits",
+  "searches.label": "Searches",
+  "searches.plural.one": "search",
+  "searches.plural.other": "searches",
+  "buyCredits": "Buy searches",
   "lang.aria": "Switch language",
 
   "banner.warning":
@@ -67,10 +69,9 @@ const en: Dict = {
   "time.hours": "{n}h ago",
   "time.days": "{n}d ago",
 
-  "buy.title": "Get more credits",
-  "buy.subtitle": "Each search costs {n} {plural}. Pick a pack below.",
-  "credits.plural.one": "credit",
-  "credits.plural.other": "credits",
+  "buy.title": "Get more searches",
+  "buy.subtitle": "Choose a pack below — bigger packs are better value.",
+  "buy.searches": "{n} {plural}",
   "buy.credits": "{n} credits",
   "buy.processing": "Processing…",
   "buy.demoNote":
@@ -80,7 +81,7 @@ const en: Dict = {
   "buy.redirecting": "Redirecting to secure checkout…",
   "buy.loadError": "Could not load credit packs.",
   "buy.payError": "Payment failed",
-  "pay.success": "Payment successful — {n} credits added.",
+  "pay.success": "Payment successful — {n} {plural} added.",
   "pay.failed": "We couldn't confirm your payment. If you were charged, contact support.",
   "pay.canceled": "Checkout canceled — no payment was made.",
 
@@ -108,8 +109,11 @@ const en: Dict = {
 
 const ru: Dict = {
   "app.tagline": "Поиск похожих лиц по публичным веб-источникам",
-  "credits.label": "Кредиты",
-  "buyCredits": "Купить кредиты",
+  "searches.label": "Поиски",
+  "searches.plural.one": "поиск",
+  "searches.plural.few": "поиска",
+  "searches.plural.many": "поисков",
+  "buyCredits": "Купить поиски",
   "lang.aria": "Сменить язык",
 
   "banner.warning":
@@ -160,11 +164,9 @@ const ru: Dict = {
   "time.hours": "{n} ч назад",
   "time.days": "{n} дн назад",
 
-  "buy.title": "Пополнить кредиты",
-  "buy.subtitle": "Каждый поиск стоит {n} {plural}. Выберите пакет ниже.",
-  "credits.plural.one": "кредит",
-  "credits.plural.few": "кредита",
-  "credits.plural.many": "кредитов",
+  "buy.title": "Пополнить поиски",
+  "buy.subtitle": "Выберите пакет ниже — большие пакеты выгоднее.",
+  "buy.searches": "{n} {plural}",
   "buy.credits": "{n} кредитов",
   "buy.processing": "Обработка…",
   "buy.demoNote":
@@ -174,7 +176,7 @@ const ru: Dict = {
   "buy.redirecting": "Перенаправляем на безопасную оплату…",
   "buy.loadError": "Не удалось загрузить пакеты кредитов.",
   "buy.payError": "Оплата не прошла",
-  "pay.success": "Оплата прошла — начислено кредитов: {n}.",
+  "pay.success": "Оплата прошла — добавлено {n} {plural}.",
   "pay.failed": "Не удалось подтвердить оплату. Если деньги списались, обратитесь в поддержку.",
   "pay.canceled": "Оплата отменена — платёж не проводился.",
 

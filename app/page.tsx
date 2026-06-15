@@ -25,7 +25,7 @@ const MAX_POLLS = 90; // ~3 min — testing-mode queues can be long
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export default function Home() {
-  const { t } = useI18n();
+  const { t, plural } = useI18n();
   const [credits, setCredits, creditsReady] = useLocalState<number>(
     "sherlock_credits",
     FREE_CREDITS,
@@ -90,7 +90,14 @@ export default function Home() {
         if (d.paid && d.credits && d.credits > 0) {
           setCredits((c) => c + d.credits!);
           setPaidSessions((s) => [...s, pendingId].slice(-50));
-          setPayNotice({ type: "success", text: t("pay.success", { n: d.credits }) });
+          const addedSearches = Math.round(d.credits / SEARCH_COST);
+          setPayNotice({
+            type: "success",
+            text: t("pay.success", {
+              n: addedSearches,
+              plural: plural(addedSearches, "searches.plural"),
+            }),
+          });
         } else {
           setPayNotice({ type: "error", text: t("pay.failed") });
         }
@@ -100,7 +107,7 @@ export default function Home() {
         clearPending();
         cleanUrl();
       });
-  }, [creditsReady, paidReady, paidSessions, setCredits, setPaidSessions, t]);
+  }, [creditsReady, paidReady, paidSessions, setCredits, setPaidSessions, t, plural]);
 
   const runSearch = useCallback(
     async (blob: Blob, thumbnail: string) => {
@@ -232,8 +239,10 @@ export default function Home() {
         <div className="flex items-center gap-3">
           <LanguageToggle />
           <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm">
-            <span className="text-white/50">{t("credits.label")}</span>{" "}
-            <span className="font-semibold text-indigo-300">{credits}</span>
+            <span className="text-white/50">{t("searches.label")}</span>{" "}
+            <span className="font-semibold text-indigo-300">
+              {Math.floor(credits / SEARCH_COST)}
+            </span>
           </div>
           <button
             onClick={() => setShowBuy(true)}
