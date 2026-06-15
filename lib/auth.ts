@@ -63,3 +63,42 @@ export async function createUser(email: string, password: string): Promise<User 
   const created = await kv().setnx(userKey(normalized), JSON.stringify(user));
   return created ? user : null;
 }
+
+/** Найти пользователя по email или создать «без пароля» (для OAuth-входа). */
+export async function ensureOAuthUser(email: string): Promise<User> {
+  const normalized = normalizeEmail(email);
+  const existing = await getUser(normalized);
+  if (existing) return existing;
+  const user: User = { email: normalized, hash: "", salt: "", createdAt: Date.now() };
+  await kv().setnx(userKey(normalized), JSON.stringify(user));
+  return (await getUser(normalized)) || user;
+}
+
+/** Сменить пароль пользователя. false — если пользователь не найден. */
+export async function updatePassword(email: string, password: string): Promise<boolean> {
+  const normalized = normalizeEmail(email);
+  const user = await getUser(normalized);
+  if (!user) return false;
+  const { hash, salt } = hashPassword(password);
+  await kv().set(userKey(normalized), JSON.stringify({ ...user, hash, salt }));
+  return true;
+}
+
+const RESET_TTL_SECONDS = 60 * 60; // 1 час
+const resetKey = (token: string) => `reset:${token}`;
+
+/** Создать токен сброса пароля (живёт 1 час). */
+export async function createResetToken(email: string): Promise<string> {
+  const token = crypto.randomBytes(32).toString("hex");
+  await kv().setex(resetKey(token), RESET_TTL_SECONDS, normalizeEmail(email));
+  return token;
+}
+
+/** Использовать токен один раз: вернуть email и удалить токен. */
+export async function consumeResetToken(token: string): Promise<string | null> {
+  if (!token) return null;
+  const email = await kv().get(resetKey(token));
+  if (!email) return null;
+  await kv().del(resetKey(token));
+  return email;
+}
