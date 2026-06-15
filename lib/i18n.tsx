@@ -82,6 +82,7 @@ const en: Dict = {
   "buy.loadError": "Could not load credit packs.",
   "buy.payError": "Payment failed",
   "pay.success": "Payment successful — {n} {plural} added.",
+  "pay.successRefresh": "Payment successful — your searches have been topped up.",
   "pay.failed": "We couldn't confirm your payment. If you were charged, contact support.",
   "pay.canceled": "Checkout canceled — no payment was made.",
 
@@ -177,6 +178,7 @@ const ru: Dict = {
   "buy.loadError": "Не удалось загрузить пакеты кредитов.",
   "buy.payError": "Оплата не прошла",
   "pay.success": "Оплата прошла — добавлено {n} {plural}.",
+  "pay.successRefresh": "Оплата прошла — баланс поисков пополнен.",
   "pay.failed": "Не удалось подтвердить оплату. Если деньги списались, обратитесь в поддержку.",
   "pay.canceled": "Оплата отменена — платёж не проводился.",
 

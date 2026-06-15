@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getProvider, FaceSearchError } from "@/lib/providers";
 import { checkRateLimit, clientKey } from "@/lib/rateLimit";
+import { balanceSearches, deductSearch, getWalletId, refundSearch } from "@/lib/wallet";
 
 export const runtime = "nodejs";
 // Each phase is short (one provider round-trip), so a modest budget is plenty.
@@ -69,6 +70,22 @@ export async function POST(req: Request) {
     );
   }
 
+  // Серверная проверка и списание поиска с кошелька.
+  const walletId = getWalletId(req);
+  if (!walletId) {
+    return NextResponse.json(
+      { error: "No wallet.", code: "no_wallet" },
+      { status: 401 },
+    );
+  }
+  const debit = await deductSearch(walletId);
+  if (!debit.ok) {
+    return NextResponse.json(
+      { error: "Not enough searches.", code: "insufficient" },
+      { status: 402 },
+    );
+  }
+
   // Hold bytes only in memory for the duration of the upload — never on disk.
   let bytes = Buffer.from(await file.arrayBuffer());
   try {
@@ -84,11 +101,14 @@ export async function POST(req: Request) {
         searchId: started.searchId,
         provider: started.provider,
         demo: started.demo,
+        searches: await balanceSearches(walletId),
         rateLimit: { remaining: rl.remaining, limit: rl.limit },
       },
       { status: 200 },
     );
   } catch (err) {
+    // Запуск не удался — возвращаем списанный поиск.
+    await refundSearch(walletId);
     return errorResponse(err);
   } finally {
     // Explicitly drop the in-memory image after upload completes.

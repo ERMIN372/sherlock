@@ -20,6 +20,16 @@ function check(name, ok, detail = "") {
   if (!ok) failures++;
 }
 
+// Simple cookie jar so wallet-bound requests share the httpOnly wallet cookie.
+let cookie = "";
+function captureCookie(res) {
+  const set = res.headers.get("set-cookie");
+  if (set) cookie = set.split(";")[0];
+}
+function withCookie(init = {}) {
+  return cookie ? { ...init, headers: { ...(init.headers || {}), Cookie: cookie } } : init;
+}
+
 async function main() {
   // homepage
   const home = await fetch(`${BASE}/`);
@@ -29,28 +39,37 @@ async function main() {
   const health = await fetch(`${BASE}/api/health`).then((r) => r.json());
   check("health ok", health.status === "ok", `provider=${health.provider}`);
 
+  // wallet — creates the anonymous wallet + cookie, grants free searches
+  const walletRes = await fetch(`${BASE}/api/wallet`);
+  captureCookie(walletRes);
+  const wallet = await walletRes.json();
+  check("wallet ok", typeof wallet.searches === "number", `searches=${wallet.searches}`);
+
   // payment listing
   const packs = await fetch(`${BASE}/api/payment`).then((r) => r.json());
   check("payment packs", Array.isArray(packs.packs) && packs.packs.length > 0);
 
-  // payment checkout (demo fallback when Stripe is not configured)
-  const pay = await fetch(`${BASE}/api/payment/checkout`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ packId: "plus" }),
-  }).then((r) => r.json());
-  check("payment checkout", pay.mode === "demo" && pay.granted > 0, `granted=${pay.granted}`);
+  // payment checkout (demo fallback when no provider configured) — credits server-side
+  const pay = await fetch(
+    `${BASE}/api/payment/checkout`,
+    withCookie({
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ packId: "plus" }),
+    }),
+  ).then((r) => r.json());
+  check("payment checkout", pay.mode === "demo" && pay.searches > 0, `searches=${pay.searches}`);
 
-  // search — phase 1: start
+  // search — phase 1: start (deducts a search from the wallet)
   const fd = new FormData();
   const bytes = Uint8Array.from(Buffer.from(JPEG_B64, "base64"));
   fd.append("image", new Blob([bytes], { type: "image/jpeg" }), "face.jpg");
-  const startRes = await fetch(`${BASE}/api/search`, { method: "POST", body: fd });
+  const startRes = await fetch(`${BASE}/api/search`, withCookie({ method: "POST", body: fd }));
   const start = await startRes.json();
   check(
     "search starts",
     startRes.ok && !!start.searchId,
-    startRes.ok ? `provider=${start.provider} demo=${start.demo}` : `status ${startRes.status}`,
+    startRes.ok ? `provider=${start.provider} searches=${start.searches}` : `status ${startRes.status}`,
   );
 
   // search — phase 2: poll to completion
@@ -77,8 +96,16 @@ async function main() {
   // validation: wrong type
   const badFd = new FormData();
   badFd.append("image", new Blob(["not an image"], { type: "text/plain" }), "x.txt");
-  const bad = await fetch(`${BASE}/api/search`, { method: "POST", body: badFd });
+  const bad = await fetch(`${BASE}/api/search`, withCookie({ method: "POST", body: badFd }));
   check("rejects bad file type", bad.status === 400, `status ${bad.status}`);
+
+  // search without a wallet cookie is rejected
+  const noWallet = await fetch(`${BASE}/api/search`, { method: "POST", body: (() => {
+    const f = new FormData();
+    f.append("image", new Blob([bytes], { type: "image/jpeg" }), "face.jpg");
+    return f;
+  })() });
+  check("search requires wallet", noWallet.status === 401, `status ${noWallet.status}`);
 
   // poll without id
   const noId = await fetch(`${BASE}/api/search`);

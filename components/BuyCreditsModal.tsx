@@ -64,9 +64,9 @@ export default function BuyCreditsModal({ open, onClose, onPurchased }: Props) {
         return;
       }
 
-      // Demo fallback — grant instantly.
+      // Демо-фолбэк — кредиты начислены на сервере, обновляем баланс поисков.
       setBusy(null);
-      onPurchased(data.granted as number);
+      onPurchased(data.searches as number);
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("buy.payError"));

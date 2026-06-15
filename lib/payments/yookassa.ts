@@ -62,7 +62,11 @@ export class YooKassaProvider implements PaymentProvider {
         capture: true,
         confirmation: { type: "redirect", return_url: p.returnUrl },
         description: `Sherlock — ${p.label} (${p.credits} credits)`,
-        metadata: { packId: p.packId, credits: String(p.credits) },
+        metadata: {
+          packId: p.packId,
+          credits: String(p.credits),
+          ...(p.walletId ? { walletId: p.walletId } : {}),
+        },
       }),
     })) as unknown as YooPayment;
 
@@ -78,19 +82,18 @@ export class YooKassaProvider implements PaymentProvider {
       paid,
       credits: paid ? Number(payment.metadata?.credits || 0) : 0,
       packId: payment.metadata?.packId,
+      walletId: payment.metadata?.walletId,
     };
   }
 
-  async verifyWebhook(rawBody: string): Promise<boolean> {
-    // ЮKassa не подписывает уведомления — подтверждаем перезапросом платежа.
+  async parseWebhookId(rawBody: string): Promise<string | null> {
+    // ЮKassa не подписывает уведомления — подлинность подтверждается в роуте
+    // повторным запросом платежа через verify().
     try {
-      const body = JSON.parse(rawBody) as { object?: { id?: string } };
-      const id = body.object?.id;
-      if (!id) return false;
-      const result = await this.verify(id);
-      return result.paid;
+      const body = JSON.parse(rawBody) as { event?: string; object?: { id?: string } };
+      return body.object?.id || null;
     } catch {
-      return false;
+      return null;
     }
   }
 }
