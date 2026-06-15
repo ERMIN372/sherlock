@@ -14,6 +14,11 @@ export interface KvStore {
   get(key: string): Promise<string | null>;
   /** Установить значение, только если ключа ещё нет. true — если установлено. */
   setnx(key: string, value: string): Promise<boolean>;
+  /** Установить (перезаписать) значение. */
+  set(key: string, value: string): Promise<void>;
+  /** Установить значение с TTL в секундах. */
+  setex(key: string, ttlSeconds: number, value: string): Promise<void>;
+  del(key: string): Promise<void>;
   incrby(key: string, n: number): Promise<number>;
   decrby(key: string, n: number): Promise<number>;
 }
@@ -46,6 +51,15 @@ class UpstashStore implements KvStore {
     const r = await this.command(["SETNX", key, value]);
     return Number(r) === 1;
   }
+  async set(key: string, value: string): Promise<void> {
+    await this.command(["SET", key, value]);
+  }
+  async setex(key: string, ttlSeconds: number, value: string): Promise<void> {
+    await this.command(["SET", key, value, "EX", ttlSeconds]);
+  }
+  async del(key: string): Promise<void> {
+    await this.command(["DEL", key]);
+  }
   async incrby(key: string, n: number): Promise<number> {
     return Number(await this.command(["INCRBY", key, n]));
   }
@@ -63,6 +77,16 @@ class MemoryStore implements KvStore {
     if (this.map.has(key)) return false;
     this.map.set(key, value);
     return true;
+  }
+  async set(key: string, value: string) {
+    this.map.set(key, value);
+  }
+  async setex(key: string, ttlSeconds: number, value: string) {
+    this.map.set(key, value);
+    setTimeout(() => this.map.delete(key), ttlSeconds * 1000).unref?.();
+  }
+  async del(key: string) {
+    this.map.delete(key);
   }
   async incrby(key: string, n: number) {
     const v = Number(this.map.get(key) || 0) + n;

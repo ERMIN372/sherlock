@@ -80,6 +80,20 @@ export default function Home() {
     refreshWallet();
   }, [refreshWallet]);
 
+  // Обработка возврата с OAuth (?auth=ok | ?auth_error=...).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const auth = params.get("auth");
+    const authError = params.get("auth_error");
+    if (!auth && !authError) return;
+    window.history.replaceState({}, "", window.location.pathname);
+    if (auth === "ok") {
+      refreshWallet();
+    } else if (authError) {
+      setPayNotice({ type: "error", text: t("auth.oauthError") });
+    }
+  }, [refreshWallet, t]);
+
   // Обработка возврата со страницы оплаты (?paid=1 | ?canceled=1).
   useEffect(() => {
     if (payHandledRef.current) return;
