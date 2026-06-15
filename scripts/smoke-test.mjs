@@ -39,11 +39,17 @@ async function main() {
   const health = await fetch(`${BASE}/api/health`).then((r) => r.json());
   check("health ok", health.status === "ok", `provider=${health.provider}`);
 
-  // wallet — creates the anonymous wallet + cookie, grants free searches
+  // wallet — creates the anonymous wallet + cookie, grants free searches.
+  // When KV is not configured, server-side accounting is off (searches=null).
   const walletRes = await fetch(`${BASE}/api/wallet`);
   captureCookie(walletRes);
   const wallet = await walletRes.json();
-  check("wallet ok", typeof wallet.searches === "number", `searches=${wallet.searches}`);
+  const accounting = wallet.accounting === true;
+  check(
+    "wallet ok",
+    accounting ? typeof wallet.searches === "number" : wallet.searches === null,
+    `accounting=${accounting} searches=${wallet.searches}`,
+  );
 
   // payment listing
   const packs = await fetch(`${BASE}/api/payment`).then((r) => r.json());
@@ -58,7 +64,11 @@ async function main() {
       body: JSON.stringify({ packId: "plus" }),
     }),
   ).then((r) => r.json());
-  check("payment checkout", pay.mode === "demo" && pay.searches > 0, `searches=${pay.searches}`);
+  check(
+    "payment checkout",
+    pay.mode === "demo" && (accounting ? pay.searches > 0 : pay.searches === null),
+    `searches=${pay.searches}`,
+  );
 
   // search — phase 1: start (deducts a search from the wallet)
   const fd = new FormData();
@@ -99,13 +109,15 @@ async function main() {
   const bad = await fetch(`${BASE}/api/search`, withCookie({ method: "POST", body: badFd }));
   check("rejects bad file type", bad.status === 400, `status ${bad.status}`);
 
-  // search without a wallet cookie is rejected
-  const noWallet = await fetch(`${BASE}/api/search`, { method: "POST", body: (() => {
-    const f = new FormData();
-    f.append("image", new Blob([bytes], { type: "image/jpeg" }), "face.jpg");
-    return f;
-  })() });
-  check("search requires wallet", noWallet.status === 401, `status ${noWallet.status}`);
+  // search without a wallet cookie: rejected when accounting is on, allowed otherwise
+  const noWalletFd = new FormData();
+  noWalletFd.append("image", new Blob([bytes], { type: "image/jpeg" }), "face.jpg");
+  const noWallet = await fetch(`${BASE}/api/search`, { method: "POST", body: noWalletFd });
+  check(
+    "wallet gating matches mode",
+    accounting ? noWallet.status === 401 : noWallet.ok,
+    `accounting=${accounting} status ${noWallet.status}`,
+  );
 
   // poll without id
   const noId = await fetch(`${BASE}/api/search`);

@@ -27,7 +27,9 @@ export default function Home() {
   const { t } = useI18n();
 
   // Баланс хранится на сервере; здесь — только отображаемое число поисков.
+  // null = серверный учёт отключён (без KV) → без ограничения («∞»).
   const [searches, setSearches] = useState<number | null>(null);
+  const [walletLoaded, setWalletLoaded] = useState(false);
   const [history, setHistory] = useLocalState<HistoryEntry[]>("sherlock_history", []);
   const [accepted, setAccepted, acceptedReady] = useLocalState<boolean>(
     "sherlock_accepted_use",
@@ -50,8 +52,9 @@ export default function Home() {
   const refreshWallet = useCallback(async () => {
     try {
       const res = await fetch("/api/wallet");
-      const data = (await res.json()) as { searches?: number };
-      if (typeof data.searches === "number") setSearches(data.searches);
+      const data = (await res.json()) as { searches?: number | null };
+      setSearches(typeof data.searches === "number" ? data.searches : null);
+      setWalletLoaded(true);
     } catch {
       /* offline — оставим как есть */
     }
@@ -239,7 +242,7 @@ export default function Home() {
           <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm">
             <span className="text-white/50">{t("searches.label")}</span>{" "}
             <span className="font-semibold text-indigo-300">
-              {searches === null ? "…" : searches}
+              {!walletLoaded ? "…" : searches === null ? "∞" : searches}
             </span>
           </div>
           <button
