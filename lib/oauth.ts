@@ -14,6 +14,27 @@ export function isOAuthProvider(p: string): p is OAuthProvider {
   return p === "yandex" || p === "vk";
 }
 
+/**
+ * Канонический origin сайта (без завершающего слэша). Важно, чтобы старт и
+ * callback OAuth использовали ОДИН и тот же origin, иначе redirect_uri не
+ * совпадёт с зарегистрированным Callback URL.
+ *
+ * Приоритет: NEXT_PUBLIC_SITE_URL → заголовки прокси (Vercel) → URL запроса.
+ */
+export function siteOrigin(req: Request): string {
+  const explicit = process.env.NEXT_PUBLIC_SITE_URL;
+  if (explicit) return explicit.replace(/\/+$/, "");
+  const proto = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https";
+  const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
+  if (host) return `${proto}://${host}`;
+  return new URL(req.url).origin;
+}
+
+/** Callback URL для провайдера — ровно его нужно прописать в настройках приложения. */
+export function callbackUrl(req: Request, provider: OAuthProvider): string {
+  return `${siteOrigin(req)}/api/auth/oauth/${provider}/callback`;
+}
+
 interface Creds {
   clientId: string;
   clientSecret: string;
@@ -77,16 +98,32 @@ export async function exchangeCodeForEmail(
         client_secret: c.clientSecret,
       }),
     });
-    const token = (await tokenRes.json().catch(() => ({}))) as { access_token?: string };
-    if (!token.access_token) return null;
+    const tokenText = await tokenRes.text();
+    let token: { access_token?: string } = {};
+    try {
+      token = JSON.parse(tokenText);
+    } catch {
+      /* ignore */
+    }
+    if (!token.access_token) {
+      console.error(`[oauth:yandex] token error (${tokenRes.status}): ${tokenText.slice(0, 300)}`);
+      return null;
+    }
     const infoRes = await fetch("https://login.yandex.ru/info?format=json", {
       headers: { Authorization: `OAuth ${token.access_token}` },
     });
-    const info = (await infoRes.json().catch(() => ({}))) as {
-      default_email?: string;
-      emails?: string[];
-    };
-    return info.default_email || info.emails?.[0] || null;
+    const infoText = await infoRes.text();
+    let info: { default_email?: string; emails?: string[] } = {};
+    try {
+      info = JSON.parse(infoText);
+    } catch {
+      /* ignore */
+    }
+    const email = info.default_email || info.emails?.[0] || null;
+    if (!email) {
+      console.error(`[oauth:yandex] no email in info (${infoRes.status}): ${infoText.slice(0, 300)}`);
+    }
+    return email;
   }
 
   // VK: email возвращается прямо в ответе token-эндпоинта (если выдан scope email).
