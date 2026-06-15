@@ -14,6 +14,9 @@ export function isOAuthProvider(p: string): p is OAuthProvider {
   return p === "yandex" || p === "vk";
 }
 
+/** Ключ в KV для одноразового state (CSRF-защита OAuth). */
+export const oauthStateKey = (state: string) => `oauth:state:${state}`;
+
 /**
  * Канонический origin сайта (без завершающего слэша). Важно, чтобы старт и
  * callback OAuth использовали ОДИН и тот же origin, иначе redirect_uri не

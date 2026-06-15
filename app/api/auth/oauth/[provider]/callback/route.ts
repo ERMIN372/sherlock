@@ -1,22 +1,19 @@
 import { NextResponse } from "next/server";
-import { callbackUrl, exchangeCodeForEmail, isOAuthProvider, oauthEnabled, siteOrigin } from "@/lib/oauth";
+import {
+  callbackUrl,
+  exchangeCodeForEmail,
+  isOAuthProvider,
+  oauthEnabled,
+  oauthStateKey,
+  siteOrigin,
+} from "@/lib/oauth";
 import { ensureOAuthUser } from "@/lib/auth";
 import { SESSION_COOKIE, cookieValueFor, initWallet } from "@/lib/wallet";
+import { kv, kvConfigured } from "@/lib/kv";
 
 export const runtime = "nodejs";
 
-const STATE_COOKIE = "sherlock_oauth_state";
-
-function readCookie(req: Request, name: string): string | null {
-  const cookie = req.headers.get("cookie") || "";
-  const m = cookie
-    .split(";")
-    .map((c) => c.trim())
-    .find((c) => c.startsWith(`${name}=`));
-  return m ? decodeURIComponent(m.slice(name.length + 1)) : null;
-}
-
-/** Колбэк OAuth: проверяем state, меняем code на email, логиним, редиректим. */
+/** Колбэк OAuth: проверяем state (KV), меняем code на email, логиним, редиректим. */
 export async function GET(req: Request, ctx: { params: Promise<{ provider: string }> }) {
   const { provider } = await ctx.params;
   const url = new URL(req.url);
@@ -27,6 +24,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ provider: strin
   };
 
   if (!isOAuthProvider(provider) || !oauthEnabled(provider)) return fail("provider");
+  if (!kvConfigured()) return fail("no_storage");
 
   // Провайдер может вернуть собственную ошибку (например, отказ в доступе).
   const providerError = url.searchParams.get("error");
@@ -34,10 +32,12 @@ export async function GET(req: Request, ctx: { params: Promise<{ provider: strin
 
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
-  const stateCookie = readCookie(req, STATE_COOKIE);
-  if (!code || !state || stateCookie !== `${provider}:${state}`) {
-    return fail(stateCookie ? "state_mismatch" : "state_missing");
-  }
+  if (!code || !state) return fail("missing_params");
+
+  // Сверяем state с тем, что сохранили на старте (одноразово).
+  const stored = await kv().get(oauthStateKey(state));
+  if (stored !== provider) return fail(stored ? "state_mismatch" : "state_missing");
+  await kv().del(oauthStateKey(state));
 
   let email: string | null = null;
   try {
@@ -60,7 +60,5 @@ export async function GET(req: Request, ctx: { params: Promise<{ provider: strin
     path: "/",
     maxAge: 60 * 60 * 24 * 365,
   });
-  // Чистим временную state-куку.
-  res.cookies.set(STATE_COOKIE, "", { path: "/", maxAge: 0 });
   return res;
 }
