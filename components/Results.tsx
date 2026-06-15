@@ -46,10 +46,11 @@ interface Props {
   items: ResultItem[];
   error: string | null;
   demo: boolean;
+  progress?: number | null;
   onRetry?: () => void;
 }
 
-export default function Results({ status, items, error, demo, onRetry }: Props) {
+export default function Results({ status, items, error, demo, progress, onRetry }: Props) {
   const { t, plural } = useI18n();
 
   if (status === "idle") {
@@ -69,6 +70,17 @@ export default function Results({ status, items, error, demo, onRetry }: Props) 
         <p className="mt-1 text-sm text-white/50 pulse-soft">
           {t("results.searching.sub")}
         </p>
+        {progress != null && (
+          <div className="mt-4 w-full max-w-xs">
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-indigo-400 transition-all duration-500"
+                style={{ width: `${Math.max(3, progress)}%` }}
+              />
+            </div>
+            <p className="mt-1.5 text-xs text-white/40">{progress}%</p>
+          </div>
+        )}
       </div>
     );
   }

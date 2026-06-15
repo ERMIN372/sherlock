@@ -25,6 +25,26 @@ export interface FaceSearchOutcome {
   demo: boolean;
 }
 
+/** Handle returned by `start()` — used to poll for results. */
+export interface FaceSearchStart {
+  /** Opaque search id understood by the provider's `poll()`. */
+  searchId: string;
+  /** Identifier of the provider handling the search. */
+  provider: string;
+  /** True when the search runs against the demo adapter or testing mode. */
+  demo: boolean;
+}
+
+/** Result of a single `poll()` call. */
+export type FaceSearchPoll =
+  | { status: "pending"; progress: number; message?: string }
+  | {
+      status: "done";
+      items: FaceSearchResultItem[];
+      provider: string;
+      demo: boolean;
+    };
+
 export interface FaceSearchInput {
   /** Raw bytes of the (already cropped) query image. */
   bytes: Buffer;
@@ -40,11 +60,17 @@ export interface FaceSearchProvider {
   /** Whether this provider returns synthetic/demo data. */
   readonly isDemo: boolean;
   /**
-   * Run a face search. Implementations MUST NOT persist the uploaded image
-   * beyond the lifetime of this call; any remote-side copy must be deleted
-   * once results are obtained.
+   * Phase 1 — upload the (cropped) query image and return a handle. The search
+   * runs asynchronously on the provider side; this call must stay short so it
+   * fits within serverless time limits. Implementations MUST NOT persist the
+   * uploaded image beyond the lifetime of this call.
    */
-  search(input: FaceSearchInput): Promise<FaceSearchOutcome>;
+  start(input: FaceSearchInput): Promise<FaceSearchStart>;
+  /**
+   * Phase 2 — poll for progress/results using the handle from `start()`.
+   * Returns quickly with either a pending progress update or the final items.
+   */
+  poll(searchId: string): Promise<FaceSearchPoll>;
 }
 
 export class FaceSearchError extends Error {

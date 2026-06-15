@@ -5,13 +5,22 @@ export interface ResultItem {
   source?: string;
 }
 
-export interface SearchResponse {
+export interface SearchStartResponse {
+  searchId: string;
   provider: string;
   demo: boolean;
-  count: number;
-  items: ResultItem[];
   rateLimit?: { remaining: number; limit: number };
 }
+
+export type SearchPollResponse =
+  | { status: "pending"; progress: number; message?: string }
+  | {
+      status: "done";
+      provider: string;
+      demo: boolean;
+      count: number;
+      items: ResultItem[];
+    };
 
 export interface HistoryEntry {
   id: string;
