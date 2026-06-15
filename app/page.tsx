@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import UploadCropper from "@/components/UploadCropper";
 import Results from "@/components/Results";
 import HistoryPanel from "@/components/HistoryPanel";
@@ -38,6 +38,15 @@ export default function Home() {
     "sherlock_accepted_use",
     false,
   );
+  // Идентификаторы уже зачтённых платёжных сессий — защита от повторного начисления.
+  const [paidSessions, setPaidSessions, paidReady] = useLocalState<string[]>(
+    "sherlock_paid_sessions",
+    [],
+  );
+  const [payNotice, setPayNotice] = useState<
+    { type: "success" | "error" | "info"; text: string } | null
+  >(null);
+  const payHandledRef = useRef(false);
 
   const [status, setStatus] = useState<SearchStatus>("idle");
   const [items, setItems] = useState<ResultItem[]>([]);
@@ -47,6 +56,45 @@ export default function Home() {
   const [showBuy, setShowBuy] = useState(false);
   const [lastBlob, setLastBlob] = useState<Blob | null>(null);
   const [lastThumb, setLastThumb] = useState<string | null>(null);
+
+  // Обработка возврата со страницы оплаты Stripe (?paid=<session_id> | ?canceled=1).
+  useEffect(() => {
+    if (!creditsReady || !paidReady || payHandledRef.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const paid = params.get("paid");
+    const canceled = params.get("canceled");
+    if (!paid && !canceled) return;
+
+    payHandledRef.current = true;
+    const cleanUrl = () =>
+      window.history.replaceState({}, "", window.location.pathname);
+
+    if (canceled) {
+      setPayNotice({ type: "info", text: t("pay.canceled") });
+      cleanUrl();
+      return;
+    }
+
+    // Уже зачтено ранее — просто чистим URL.
+    if (paidSessions.includes(paid!)) {
+      cleanUrl();
+      return;
+    }
+
+    fetch(`/api/payment/verify?session_id=${encodeURIComponent(paid!)}`)
+      .then((r) => r.json())
+      .then((d: { paid?: boolean; credits?: number }) => {
+        if (d.paid && d.credits && d.credits > 0) {
+          setCredits((c) => c + d.credits!);
+          setPaidSessions((s) => [...s, paid!].slice(-50));
+          setPayNotice({ type: "success", text: t("pay.success", { n: d.credits }) });
+        } else {
+          setPayNotice({ type: "error", text: t("pay.failed") });
+        }
+      })
+      .catch(() => setPayNotice({ type: "error", text: t("pay.failed") }))
+      .finally(cleanUrl);
+  }, [creditsReady, paidReady, paidSessions, setCredits, setPaidSessions, t]);
 
   const runSearch = useCallback(
     async (blob: Blob, thumbnail: string) => {
@@ -189,6 +237,28 @@ export default function Home() {
           </button>
         </div>
       </header>
+
+      {/* Уведомление о результате оплаты */}
+      {payNotice && (
+        <div
+          className={`mb-4 flex items-start justify-between gap-3 rounded-xl border px-4 py-3 text-sm ${
+            payNotice.type === "success"
+              ? "border-emerald-500/30 bg-emerald-500/[0.08] text-emerald-200"
+              : payNotice.type === "error"
+                ? "border-rose-500/30 bg-rose-500/[0.08] text-rose-200"
+                : "border-white/15 bg-white/[0.04] text-white/70"
+          }`}
+        >
+          <span>{payNotice.text}</span>
+          <button
+            onClick={() => setPayNotice(null)}
+            className="shrink-0 text-current/60 hover:opacity-70"
+            aria-label="×"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Acceptable use banner */}
       <div className="mb-6 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-4 py-3 text-xs leading-relaxed text-amber-200/80">

@@ -73,8 +73,14 @@ const en: Dict = {
   "buy.processing": "Processing…",
   "buy.demoNote":
     "Demo checkout — no real payment is processed. Credits are granted instantly for demonstration purposes.",
+  "buy.stripeNote":
+    "Secure checkout via Stripe. You'll be redirected to pay by card; credits are added after payment.",
+  "buy.redirecting": "Redirecting to secure checkout…",
   "buy.loadError": "Could not load credit packs.",
   "buy.payError": "Payment failed",
+  "pay.success": "Payment successful — {n} credits added.",
+  "pay.failed": "We couldn't confirm your payment. If you were charged, contact support.",
+  "pay.canceled": "Checkout canceled — no payment was made.",
 
   "gate.title": "Before you search",
   "gate.intro":
@@ -158,8 +164,14 @@ const ru: Dict = {
   "buy.processing": "Обработка…",
   "buy.demoNote":
     "Демо-оплата — реальный платёж не проводится. Кредиты начисляются мгновенно в демонстрационных целях.",
+  "buy.stripeNote":
+    "Безопасная оплата через Stripe. Вас перенаправит на оплату картой; кредиты начислятся после платежа.",
+  "buy.redirecting": "Перенаправляем на безопасную оплату…",
   "buy.loadError": "Не удалось загрузить пакеты кредитов.",
   "buy.payError": "Оплата не прошла",
+  "pay.success": "Оплата прошла — начислено кредитов: {n}.",
+  "pay.failed": "Не удалось подтвердить оплату. Если деньги списались, обратитесь в поддержку.",
+  "pay.canceled": "Оплата отменена — платёж не проводился.",
 
   "gate.title": "Перед началом поиска",
   "gate.intro":
