@@ -21,9 +21,9 @@ interface PackDef {
 }
 
 const PACKS: Record<string, PackDef> = {
-  starter: { credits: 10, label: "Starter", priceRub: 490, priceUsd: 5 },
-  plus: { credits: 30, label: "Plus", priceRub: 1190, priceUsd: 12 },
-  pro: { credits: 100, label: "Pro", priceRub: 2990, priceUsd: 30 },
+  starter: { credits: 10, label: "Starter", priceRub: 149, priceUsd: 2 },
+  plus: { credits: 30, label: "Plus", priceRub: 399, priceUsd: 5 },
+  pro: { credits: 100, label: "Pro", priceRub: 1290, priceUsd: 15 },
 };
 
 function priceFor(def: PackDef, currency: Currency): number {

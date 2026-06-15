@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
+import { SEARCH_COST } from "@/lib/config";
 
 interface Pack {
   id: string;
@@ -22,7 +23,7 @@ interface Props {
 }
 
 export default function BuyCreditsModal({ open, onClose, onPurchased }: Props) {
-  const { t } = useI18n();
+  const { t, plural } = useI18n();
   const [packs, setPacks] = useState<Pack[]>([]);
   const [paid, setPaid] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -88,7 +89,12 @@ export default function BuyCreditsModal({ open, onClose, onPurchased }: Props) {
             ✕
           </button>
         </div>
-        <p className="mb-4 text-sm text-white/50">{t("buy.subtitle")}</p>
+        <p className="mb-4 text-sm text-white/50">
+          {t("buy.subtitle", {
+            n: SEARCH_COST,
+            plural: plural(SEARCH_COST, "credits.plural"),
+          })}
+        </p>
 
         <div className="space-y-3">
           {packs.map((p) => (
