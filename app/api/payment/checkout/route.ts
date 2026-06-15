@@ -1,18 +1,24 @@
 import { NextResponse } from "next/server";
 import { getPack } from "@/lib/packs";
 import { getPaymentProvider, paymentInfo } from "@/lib/payments";
+import { addCredits, balanceSearches, getWalletId } from "@/lib/wallet";
 
 export const runtime = "nodejs";
 
 /**
- * Начать покупку кредитов.
+ * Начать покупку.
  *
- * - Если платёжный провайдер настроен (ЮKassa/Stripe) — создаёт реальный платёж
- *   и возвращает URL для редиректа. Кредиты начисляются только после проверки
- *   оплаты на возврате (см. /api/payment/verify).
- * - Если ключей нет — мгновенный демо-грант, чтобы MVP оставался работоспособным.
+ * - Провайдер настроен (ЮKassa/Stripe): создаёт платёж и возвращает URL для
+ *   редиректа. Кредиты начисляются на сервер только после проверки оплаты
+ *   (вебхук + /api/payment/verify) — кошелёк передаётся в metadata платежа.
+ * - Провайдера нет: демо-режим — кредиты начисляются на серверный кошелёк сразу.
  */
 export async function POST(req: Request) {
+  const walletId = getWalletId(req);
+  if (!walletId) {
+    return NextResponse.json({ error: "No wallet." }, { status: 401 });
+  }
+
   let packId = "";
   try {
     const body = (await req.json()) as { packId?: string };
@@ -29,10 +35,12 @@ export async function POST(req: Request) {
 
   const provider = getPaymentProvider();
 
-  // Демо-фолбэк, когда платёж не настроен.
+  // Демо-фолбэк: начисляем на сервер сразу.
   if (!provider) {
-    await new Promise((r) => setTimeout(r, 600));
-    return NextResponse.json({ mode: "demo", success: true, granted: pack.credits, pack });
+    await new Promise((r) => setTimeout(r, 400));
+    await addCredits(walletId, pack.credits);
+    const searches = await balanceSearches(walletId);
+    return NextResponse.json({ mode: "demo", success: true, searches });
   }
 
   const origin =
@@ -47,6 +55,7 @@ export async function POST(req: Request) {
       price: pack.price,
       label: pack.label,
       returnUrl: `${origin}/?paid=1`,
+      walletId,
     });
     return NextResponse.json({ mode: "checkout", url: checkout.url, id: checkout.id });
   } catch (err) {

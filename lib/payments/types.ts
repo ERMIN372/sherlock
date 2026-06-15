@@ -8,6 +8,8 @@ export interface CheckoutParams {
   label: string;
   /** URL возврата после оплаты (успех/отмена обрабатываются на клиенте). */
   returnUrl: string;
+  /** Кошелёк, которому начислить кредиты (кладётся в metadata платежа). */
+  walletId?: string;
 }
 
 export interface CheckoutResult {
@@ -21,6 +23,8 @@ export interface VerifyResult {
   paid: boolean;
   credits: number;
   packId?: string;
+  /** Кошелёк из metadata платежа (для серверного начисления). */
+  walletId?: string;
 }
 
 /** Абстракция платёжного провайдера: Stripe, ЮKassa и т.д. */
@@ -31,6 +35,10 @@ export interface PaymentProvider {
   createCheckout(params: CheckoutParams): Promise<CheckoutResult>;
   /** Проверить статус платежа по его id (серверная, неподделываемая проверка). */
   verify(id: string): Promise<VerifyResult>;
-  /** Проверить входящий вебхук (подпись/перезапрос). */
-  verifyWebhook(rawBody: string, headers: Headers): Promise<boolean>;
+  /**
+   * Разобрать входящий вебхук и вернуть id платежа, если уведомление подлинное
+   * и относится к завершённой оплате, иначе null. Сумму/кошелёк роут получает
+   * через verify(id) (повторный запрос к провайдеру).
+   */
+  parseWebhookId(rawBody: string, headers: Headers): Promise<string | null>;
 }

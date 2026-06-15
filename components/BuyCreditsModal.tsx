@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
-import { SEARCH_COST } from "@/lib/config";
 
 interface Pack {
   id: string;
+  searches: number;
   credits: number;
   price: number;
   currency: "rub" | "usd";
@@ -64,9 +64,9 @@ export default function BuyCreditsModal({ open, onClose, onPurchased }: Props) {
         return;
       }
 
-      // Demo fallback — grant instantly.
+      // Демо-фолбэк — кредиты начислены на сервере, обновляем баланс поисков.
       setBusy(null);
-      onPurchased(data.granted as number);
+      onPurchased(data.searches as number);
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("buy.payError"));
@@ -89,12 +89,7 @@ export default function BuyCreditsModal({ open, onClose, onPurchased }: Props) {
             ✕
           </button>
         </div>
-        <p className="mb-4 text-sm text-white/50">
-          {t("buy.subtitle", {
-            n: SEARCH_COST,
-            plural: plural(SEARCH_COST, "credits.plural"),
-          })}
-        </p>
+        <p className="mb-4 text-sm text-white/50">{t("buy.subtitle")}</p>
 
         <div className="space-y-3">
           {packs.map((p) => (
@@ -106,7 +101,12 @@ export default function BuyCreditsModal({ open, onClose, onPurchased }: Props) {
             >
               <div>
                 <p className="font-semibold">{p.label}</p>
-                <p className="text-sm text-white/50">{t("buy.credits", { n: p.credits })}</p>
+                <p className="text-sm text-white/50">
+                  {t("buy.searches", {
+                    n: p.searches,
+                    plural: plural(p.searches, "searches.plural"),
+                  })}
+                </p>
               </div>
               <div className="text-right">
                 <p className="font-semibold text-indigo-300">{formatPrice(p.price, p.currency)}</p>

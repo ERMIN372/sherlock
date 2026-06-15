@@ -9,7 +9,6 @@ import AcceptableUseGate from "@/components/AcceptableUseGate";
 import LanguageToggle from "@/components/LanguageToggle";
 import { useLocalState } from "@/lib/useLocalState";
 import { useI18n } from "@/lib/i18n";
-import { FREE_CREDITS, SEARCH_COST } from "@/lib/config";
 import {
   resolveMode,
   type HistoryEntry,
@@ -21,27 +20,18 @@ import {
 } from "@/lib/clientTypes";
 
 const POLL_INTERVAL_MS = 2000;
-const MAX_POLLS = 90; // ~3 min — testing-mode queues can be long
+const MAX_POLLS = 90; // ~3 мин — очередь тестового режима бывает долгой
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export default function Home() {
   const { t } = useI18n();
-  const [credits, setCredits, creditsReady] = useLocalState<number>(
-    "sherlock_credits",
-    FREE_CREDITS,
-  );
-  const [history, setHistory] = useLocalState<HistoryEntry[]>(
-    "sherlock_history",
-    [],
-  );
-  const [accepted, setAccepted] = useLocalState<boolean>(
+
+  // Баланс хранится на сервере; здесь — только отображаемое число поисков.
+  const [searches, setSearches] = useState<number | null>(null);
+  const [history, setHistory] = useLocalState<HistoryEntry[]>("sherlock_history", []);
+  const [accepted, setAccepted, acceptedReady] = useLocalState<boolean>(
     "sherlock_accepted_use",
     false,
-  );
-  // Идентификаторы уже зачтённых платёжных сессий — защита от повторного начисления.
-  const [paidSessions, setPaidSessions, paidReady] = useLocalState<string[]>(
-    "sherlock_paid_sessions",
-    [],
   );
   const [payNotice, setPayNotice] = useState<
     { type: "success" | "error" | "info"; text: string } | null
@@ -57,17 +47,31 @@ export default function Home() {
   const [lastBlob, setLastBlob] = useState<Blob | null>(null);
   const [lastThumb, setLastThumb] = useState<string | null>(null);
 
-  // Обработка возврата со страницы оплаты Stripe (?paid=<session_id> | ?canceled=1).
+  const refreshWallet = useCallback(async () => {
+    try {
+      const res = await fetch("/api/wallet");
+      const data = (await res.json()) as { searches?: number };
+      if (typeof data.searches === "number") setSearches(data.searches);
+    } catch {
+      /* offline — оставим как есть */
+    }
+  }, []);
+
+  // Загрузка/создание кошелька при старте (ставит httpOnly-куку).
   useEffect(() => {
-    if (!creditsReady || !paidReady || payHandledRef.current) return;
+    refreshWallet();
+  }, [refreshWallet]);
+
+  // Обработка возврата со страницы оплаты (?paid=1 | ?canceled=1).
+  useEffect(() => {
+    if (payHandledRef.current) return;
     const params = new URLSearchParams(window.location.search);
     const paid = params.get("paid");
     const canceled = params.get("canceled");
     if (!paid && !canceled) return;
 
     payHandledRef.current = true;
-    const cleanUrl = () =>
-      window.history.replaceState({}, "", window.location.pathname);
+    const cleanUrl = () => window.history.replaceState({}, "", window.location.pathname);
     const pendingId = window.localStorage.getItem("sherlock_pending_payment") || "";
     const clearPending = () => window.localStorage.removeItem("sherlock_pending_payment");
 
@@ -78,19 +82,17 @@ export default function Home() {
       return;
     }
 
-    // Нет id платежа или он уже зачтён ранее — просто чистим URL.
-    if (!pendingId || paidSessions.includes(pendingId)) {
+    if (!pendingId) {
       cleanUrl();
       return;
     }
 
     fetch(`/api/payment/verify?session_id=${encodeURIComponent(pendingId)}`)
       .then((r) => r.json())
-      .then((d: { paid?: boolean; credits?: number }) => {
-        if (d.paid && d.credits && d.credits > 0) {
-          setCredits((c) => c + d.credits!);
-          setPaidSessions((s) => [...s, pendingId].slice(-50));
-          setPayNotice({ type: "success", text: t("pay.success", { n: d.credits }) });
+      .then((d: { paid?: boolean; searches?: number }) => {
+        if (typeof d.searches === "number") setSearches(d.searches);
+        if (d.paid) {
+          setPayNotice({ type: "success", text: t("pay.successRefresh") });
         } else {
           setPayNotice({ type: "error", text: t("pay.failed") });
         }
@@ -100,11 +102,11 @@ export default function Home() {
         clearPending();
         cleanUrl();
       });
-  }, [creditsReady, paidReady, paidSessions, setCredits, setPaidSessions, t]);
+  }, [t]);
 
   const runSearch = useCallback(
     async (blob: Blob, thumbnail: string) => {
-      if (credits < SEARCH_COST) {
+      if (searches !== null && searches < 1) {
         setShowBuy(true);
         return;
       }
@@ -124,28 +126,34 @@ export default function Home() {
       };
 
       try {
-        // Phase 1 — start the search (uploads the image, returns a handle).
+        // Фаза 1 — запуск поиска (загрузка изображения, серверное списание).
         const form = new FormData();
         form.append("image", blob, "query.jpg");
         const startRes = await fetch("/api/search", { method: "POST", body: form });
         const start = (await startRes.json()) as SearchStartResponse & {
+          searches?: number;
           error?: string;
           code?: string;
           retryAfter?: number;
         };
         if (!startRes.ok) {
+          if (start.code === "insufficient" || start.code === "no_wallet") {
+            await refreshWallet();
+            setStatus("idle");
+            setShowBuy(true);
+            return;
+          }
           fail(start.code, start.retryAfter);
           return;
         }
 
+        if (typeof start.searches === "number") setSearches(start.searches);
         setMode(resolveMode(start.provider, start.demo));
 
-        // Phase 2 — poll for progress/results.
+        // Фаза 2 — опрос результата.
         for (let attempt = 0; attempt < MAX_POLLS; attempt++) {
           await sleep(POLL_INTERVAL_MS);
-          const pollRes = await fetch(
-            `/api/search?id=${encodeURIComponent(start.searchId)}`,
-          );
+          const pollRes = await fetch(`/api/search?id=${encodeURIComponent(start.searchId)}`);
           const poll = (await pollRes.json()) as SearchPollResponse & {
             error?: string;
             code?: string;
@@ -160,8 +168,6 @@ export default function Home() {
             continue;
           }
 
-          // Done — consume credits for the search and record results.
-          setCredits((c) => Math.max(0, c - SEARCH_COST));
           setProgress(null);
           setItems(poll.items);
           setMode(resolveMode(poll.provider, poll.demo));
@@ -187,14 +193,13 @@ export default function Home() {
           return;
         }
 
-        // Exhausted polling budget.
         fail("timeout");
       } catch {
         setError(t("search.err.network"));
         setStatus("error");
       }
     },
-    [credits, setCredits, setHistory, t],
+    [searches, refreshWallet, setHistory, t],
   );
 
   const handleSearch = useCallback(
@@ -214,11 +219,11 @@ export default function Home() {
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
-      <AcceptableUseGate open={creditsReady && !accepted} onAccept={() => setAccepted(true)} />
+      <AcceptableUseGate open={acceptedReady && !accepted} onAccept={() => setAccepted(true)} />
       <BuyCreditsModal
         open={showBuy}
         onClose={() => setShowBuy(false)}
-        onPurchased={(c) => setCredits((prev) => prev + c)}
+        onPurchased={(s) => setSearches(s)}
       />
 
       {/* Header */}
@@ -232,8 +237,10 @@ export default function Home() {
         <div className="flex items-center gap-3">
           <LanguageToggle />
           <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm">
-            <span className="text-white/50">{t("credits.label")}</span>{" "}
-            <span className="font-semibold text-indigo-300">{credits}</span>
+            <span className="text-white/50">{t("searches.label")}</span>{" "}
+            <span className="font-semibold text-indigo-300">
+              {searches === null ? "…" : searches}
+            </span>
           </div>
           <button
             onClick={() => setShowBuy(true)}

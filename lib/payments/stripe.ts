@@ -51,6 +51,7 @@ export class StripeProvider implements PaymentProvider {
     );
     body.set("metadata[packId]", p.packId);
     body.set("metadata[credits]", String(p.credits));
+    if (p.walletId) body.set("metadata[walletId]", p.walletId);
 
     const s = (await this.call("/checkout/sessions", { method: "POST", body })) as unknown as {
       id: string;
@@ -69,25 +70,37 @@ export class StripeProvider implements PaymentProvider {
       paid,
       credits: paid ? Number(s.metadata?.credits || 0) : 0,
       packId: s.metadata?.packId,
+      walletId: s.metadata?.walletId,
     };
   }
 
-  async verifyWebhook(rawBody: string, headers: Headers): Promise<boolean> {
-    if (!this.webhookSecret) return false;
+  async parseWebhookId(rawBody: string, headers: Headers): Promise<string | null> {
+    if (!this.webhookSecret) return null;
     const sig = headers.get("stripe-signature");
-    if (!sig) return false;
+    if (!sig) return null;
     const parts = Object.fromEntries(sig.split(",").map((kv) => kv.split("=") as [string, string]));
     const t = parts.t;
     const v1 = parts.v1;
-    if (!t || !v1) return false;
+    if (!t || !v1) return null;
     const age = Math.abs(Date.now() / 1000 - Number(t));
-    if (Number.isNaN(age) || age > 300) return false;
+    if (Number.isNaN(age) || age > 300) return null;
     const signed = crypto
       .createHmac("sha256", this.webhookSecret)
       .update(`${t}.${rawBody}`, "utf8")
       .digest("hex");
     const a = Buffer.from(signed);
     const b = Buffer.from(v1);
-    return a.length === b.length && crypto.timingSafeEqual(a, b);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+
+    try {
+      const event = JSON.parse(rawBody) as {
+        type?: string;
+        data?: { object?: { id?: string } };
+      };
+      if (event.type !== "checkout.session.completed") return null;
+      return event.data?.object?.id || null;
+    } catch {
+      return null;
+    }
   }
 }
