@@ -3,6 +3,7 @@ import {
   WALLET_COOKIE,
   balanceSearches,
   cookieValueFor,
+  getSessionId,
   getWalletId,
   initWallet,
   newWalletId,
@@ -20,9 +21,11 @@ export const runtime = "nodejs";
  */
 export async function GET(req: Request) {
   if (!kvConfigured()) {
-    return NextResponse.json({ searches: null, accounting: false });
+    return NextResponse.json({ searches: null, accounting: false, email: null });
   }
 
+  // Залогиненный аккаунт (email) имеет приоритет над анонимной кукой.
+  const email = getSessionId(req);
   let id = getWalletId(req);
   let setCookie = false;
   if (!id) {
@@ -32,7 +35,7 @@ export async function GET(req: Request) {
   await initWallet(id);
   const searches = await balanceSearches(id);
 
-  const res = NextResponse.json({ searches, accounting: true });
+  const res = NextResponse.json({ searches, accounting: true, email: email || null });
   if (setCookie) {
     res.cookies.set(WALLET_COOKIE, cookieValueFor(id), {
       httpOnly: true,

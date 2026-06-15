@@ -104,6 +104,23 @@ const en: Dict = {
   "search.err.provider_error": "Search failed. Please try again.",
   "search.err.network": "Network error. Please check your connection and retry.",
 
+  "auth.login": "Log in",
+  "auth.logout": "Log out",
+  "auth.title.login": "Log in",
+  "auth.title.register": "Create account",
+  "auth.subtitle": "Keep your searches and balance across devices.",
+  "auth.email": "Email",
+  "auth.password": "Password",
+  "auth.submit.login": "Log in",
+  "auth.submit.register": "Sign up",
+  "auth.toggleToRegister": "No account? Sign up",
+  "auth.toggleToLogin": "Have an account? Log in",
+  "auth.err.bad_email": "Enter a valid email.",
+  "auth.err.weak_password": "Password must be at least 8 characters.",
+  "auth.err.exists": "This email is already registered.",
+  "auth.err.bad_credentials": "Wrong email or password.",
+  "auth.err.generic": "Something went wrong. Please try again.",
+
   "footer":
     "Sherlock MVP · Face search powered by a third-party API · For lawful, authorized use only.",
 };
@@ -201,6 +218,23 @@ const ru: Dict = {
     "Некорректное изображение. Используйте JPEG, PNG или WebP до 8 МБ.",
   "search.err.provider_error": "Поиск не удался. Попробуйте ещё раз.",
   "search.err.network": "Ошибка сети. Проверьте соединение и повторите.",
+
+  "auth.login": "Войти",
+  "auth.logout": "Выйти",
+  "auth.title.login": "Вход",
+  "auth.title.register": "Регистрация",
+  "auth.subtitle": "Чтобы баланс и поиски сохранялись на всех устройствах.",
+  "auth.email": "Email",
+  "auth.password": "Пароль",
+  "auth.submit.login": "Войти",
+  "auth.submit.register": "Зарегистрироваться",
+  "auth.toggleToRegister": "Нет аккаунта? Регистрация",
+  "auth.toggleToLogin": "Уже есть аккаунт? Войти",
+  "auth.err.bad_email": "Введите корректный email.",
+  "auth.err.weak_password": "Пароль должен быть не короче 8 символов.",
+  "auth.err.exists": "Этот email уже зарегистрирован.",
+  "auth.err.bad_credentials": "Неверный email или пароль.",
+  "auth.err.generic": "Что-то пошло не так. Попробуйте ещё раз.",
 
   "footer":
     "Sherlock MVP · Поиск лиц через сторонний API · Только для законного, авторизованного использования.",

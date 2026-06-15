@@ -10,6 +10,7 @@ import { kv } from "./kv";
 import { FREE_CREDITS, SEARCH_COST } from "./config";
 
 export const WALLET_COOKIE = "sherlock_wallet";
+export const SESSION_COOKIE = "sherlock_session";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 год
 
 function secret(): string | null {
@@ -39,15 +40,32 @@ function parseCookieValue(value: string): string | null {
   return id;
 }
 
-/** Прочитать id кошелька из куки запроса (или null). */
-export function getWalletId(req: Request): string | null {
+function readCookie(req: Request, name: string): string | null {
   const cookie = req.headers.get("cookie") || "";
   const match = cookie
     .split(";")
     .map((c) => c.trim())
-    .find((c) => c.startsWith(`${WALLET_COOKIE}=`));
+    .find((c) => c.startsWith(`${name}=`));
   if (!match) return null;
-  return parseCookieValue(decodeURIComponent(match.slice(WALLET_COOKIE.length + 1)));
+  return parseCookieValue(decodeURIComponent(match.slice(name.length + 1)));
+}
+
+/** Id залогиненного аккаунта (= email) из сессионной куки, либо null. */
+export function getSessionId(req: Request): string | null {
+  return readCookie(req, SESSION_COOKIE);
+}
+
+/** Id анонимного кошелька (без учёта сессии), либо null. */
+export function getAnonWalletId(req: Request): string | null {
+  return readCookie(req, WALLET_COOKIE);
+}
+
+/**
+ * Текущий идентификатор кошелька: сессия аккаунта в приоритете, иначе
+ * анонимная кука. Весь учёт баланса работает по этому id.
+ */
+export function getWalletId(req: Request): string | null {
+  return getSessionId(req) || readCookie(req, WALLET_COOKIE);
 }
 
 export function newWalletId(): string {
