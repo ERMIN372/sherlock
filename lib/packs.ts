@@ -1,29 +1,47 @@
-/** Credit packs offered for purchase. Shared by the API routes. */
+/** Пакеты кредитов для покупки. Общий модуль для API-роутов и UI. */
+
+export type Currency = "rub" | "usd";
 
 export interface Pack {
   id: string;
   credits: number;
-  /** Price in whole USD. */
+  /** Цена в выбранной валюте (целое число денежных единиц). */
   price: number;
+  currency: Currency;
   label: string;
 }
 
-const PACKS: Record<string, Omit<Pack, "id">> = {
-  starter: { credits: 10, price: 5, label: "Starter" },
-  plus: { credits: 30, price: 12, label: "Plus" },
-  pro: { credits: 100, price: 30, label: "Pro" },
+interface PackDef {
+  credits: number;
+  label: string;
+  /** Цена в рублях (для ЮKassa). */
+  priceRub: number;
+  /** Цена в долларах (для Stripe). */
+  priceUsd: number;
+}
+
+const PACKS: Record<string, PackDef> = {
+  starter: { credits: 10, label: "Starter", priceRub: 490, priceUsd: 5 },
+  plus: { credits: 30, label: "Plus", priceRub: 1190, priceUsd: 12 },
+  pro: { credits: 100, label: "Pro", priceRub: 2990, priceUsd: 30 },
 };
 
-export function listPacks(): Pack[] {
-  return Object.entries(PACKS).map(([id, p]) => ({ id, ...p }));
+function priceFor(def: PackDef, currency: Currency): number {
+  return currency === "rub" ? def.priceRub : def.priceUsd;
 }
 
-export function getPack(id: string): Pack | null {
-  const p = PACKS[id];
-  return p ? { id, ...p } : null;
+export function listPacks(currency: Currency): Pack[] {
+  return Object.entries(PACKS).map(([id, def]) => ({
+    id,
+    credits: def.credits,
+    label: def.label,
+    currency,
+    price: priceFor(def, currency),
+  }));
 }
 
-/** True when real Stripe payments are configured. */
-export function stripeEnabled(): boolean {
-  return Boolean(process.env.STRIPE_SECRET_KEY);
+export function getPack(id: string, currency: Currency): Pack | null {
+  const def = PACKS[id];
+  if (!def) return null;
+  return { id, credits: def.credits, label: def.label, currency, price: priceFor(def, currency) };
 }

@@ -68,32 +68,38 @@ export default function Home() {
     payHandledRef.current = true;
     const cleanUrl = () =>
       window.history.replaceState({}, "", window.location.pathname);
+    const pendingId = window.localStorage.getItem("sherlock_pending_payment") || "";
+    const clearPending = () => window.localStorage.removeItem("sherlock_pending_payment");
 
     if (canceled) {
       setPayNotice({ type: "info", text: t("pay.canceled") });
+      clearPending();
       cleanUrl();
       return;
     }
 
-    // Уже зачтено ранее — просто чистим URL.
-    if (paidSessions.includes(paid!)) {
+    // Нет id платежа или он уже зачтён ранее — просто чистим URL.
+    if (!pendingId || paidSessions.includes(pendingId)) {
       cleanUrl();
       return;
     }
 
-    fetch(`/api/payment/verify?session_id=${encodeURIComponent(paid!)}`)
+    fetch(`/api/payment/verify?session_id=${encodeURIComponent(pendingId)}`)
       .then((r) => r.json())
       .then((d: { paid?: boolean; credits?: number }) => {
         if (d.paid && d.credits && d.credits > 0) {
           setCredits((c) => c + d.credits!);
-          setPaidSessions((s) => [...s, paid!].slice(-50));
+          setPaidSessions((s) => [...s, pendingId].slice(-50));
           setPayNotice({ type: "success", text: t("pay.success", { n: d.credits }) });
         } else {
           setPayNotice({ type: "error", text: t("pay.failed") });
         }
       })
       .catch(() => setPayNotice({ type: "error", text: t("pay.failed") }))
-      .finally(cleanUrl);
+      .finally(() => {
+        clearPending();
+        cleanUrl();
+      });
   }, [creditsReady, paidReady, paidSessions, setCredits, setPaidSessions, t]);
 
   const runSearch = useCallback(
