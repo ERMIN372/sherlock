@@ -7,7 +7,12 @@ interface Pack {
   id: string;
   credits: number;
   price: number;
+  currency: "rub" | "usd";
   label: string;
+}
+
+function formatPrice(price: number, currency: "rub" | "usd"): string {
+  return currency === "rub" ? `${price} ₽` : `$${price}`;
 }
 
 interface Props {
@@ -19,7 +24,7 @@ interface Props {
 export default function BuyCreditsModal({ open, onClose, onPurchased }: Props) {
   const { t } = useI18n();
   const [packs, setPacks] = useState<Pack[]>([]);
-  const [stripe, setStripe] = useState(false);
+  const [paid, setPaid] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,7 +34,7 @@ export default function BuyCreditsModal({ open, onClose, onPurchased }: Props) {
       .then((r) => r.json())
       .then((d) => {
         setPacks(d.packs || []);
-        setStripe(Boolean(d.stripe));
+        setPaid(Boolean(d.enabled));
       })
       .catch(() => setError(t("buy.loadError")));
   }, [open, t]);
@@ -50,8 +55,10 @@ export default function BuyCreditsModal({ open, onClose, onPurchased }: Props) {
         throw new Error(data.error || t("buy.payError"));
       }
 
-      if (data.mode === "stripe" && data.url) {
-        // Redirect to Stripe Checkout; credits are granted on return.
+      if (data.mode === "checkout" && data.url) {
+        // Запоминаем id платежа и уходим на страницу оплаты;
+        // кредиты начислятся после проверки на возврате.
+        window.localStorage.setItem("sherlock_pending_payment", String(data.id || ""));
         window.location.href = data.url as string;
         return;
       }
@@ -96,10 +103,10 @@ export default function BuyCreditsModal({ open, onClose, onPurchased }: Props) {
                 <p className="text-sm text-white/50">{t("buy.credits", { n: p.credits })}</p>
               </div>
               <div className="text-right">
-                <p className="font-semibold text-indigo-300">${p.price}</p>
+                <p className="font-semibold text-indigo-300">{formatPrice(p.price, p.currency)}</p>
                 {busy === p.id && (
                   <p className="text-xs text-white/40">
-                    {stripe ? t("buy.redirecting") : t("buy.processing")}
+                    {paid ? t("buy.redirecting") : t("buy.processing")}
                   </p>
                 )}
               </div>
@@ -110,7 +117,7 @@ export default function BuyCreditsModal({ open, onClose, onPurchased }: Props) {
         {error && <p className="mt-3 text-sm text-rose-400">{error}</p>}
 
         <p className="mt-4 rounded-lg bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-200/80">
-          {stripe ? t("buy.stripeNote") : t("buy.demoNote")}
+          {paid ? t("buy.payNote") : t("buy.demoNote")}
         </p>
       </div>
     </div>

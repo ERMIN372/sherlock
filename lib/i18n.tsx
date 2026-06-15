@@ -73,8 +73,8 @@ const en: Dict = {
   "buy.processing": "Processing…",
   "buy.demoNote":
     "Demo checkout — no real payment is processed. Credits are granted instantly for demonstration purposes.",
-  "buy.stripeNote":
-    "Secure checkout via Stripe. You'll be redirected to pay by card; credits are added after payment.",
+  "buy.payNote":
+    "Secure online payment. You'll be redirected to pay; credits are added after the payment is confirmed.",
   "buy.redirecting": "Redirecting to secure checkout…",
   "buy.loadError": "Could not load credit packs.",
   "buy.payError": "Payment failed",
@@ -164,8 +164,8 @@ const ru: Dict = {
   "buy.processing": "Обработка…",
   "buy.demoNote":
     "Демо-оплата — реальный платёж не проводится. Кредиты начисляются мгновенно в демонстрационных целях.",
-  "buy.stripeNote":
-    "Безопасная оплата через Stripe. Вас перенаправит на оплату картой; кредиты начислятся после платежа.",
+  "buy.payNote":
+    "Безопасная онлайн-оплата. Вас перенаправит на оплату; кредиты начислятся после подтверждения платежа.",
   "buy.redirecting": "Перенаправляем на безопасную оплату…",
   "buy.loadError": "Не удалось загрузить пакеты кредитов.",
   "buy.payError": "Оплата не прошла",
