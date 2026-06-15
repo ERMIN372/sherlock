@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import crypto from "node:crypto";
-import { authorizeUrl, isOAuthProvider, oauthEnabled } from "@/lib/oauth";
+import { authorizeUrl, callbackUrl, isOAuthProvider, oauthEnabled } from "@/lib/oauth";
 
 export const runtime = "nodejs";
 
@@ -13,9 +13,14 @@ export async function GET(req: Request, ctx: { params: Promise<{ provider: strin
     return NextResponse.json({ error: "Provider not available." }, { status: 404 });
   }
 
-  const origin =
-    req.headers.get("origin") || process.env.NEXT_PUBLIC_SITE_URL || new URL(req.url).origin;
-  const redirectUri = `${origin}/api/auth/oauth/${provider}/callback`;
+  const redirectUri = callbackUrl(req, provider);
+
+  // ?debug=1 — показать, какой именно redirect_uri отправляется (его и нужно
+  // прописать как Callback URL в настройках OAuth-приложения).
+  if (new URL(req.url).searchParams.get("debug") === "1") {
+    return NextResponse.json({ provider, redirectUri });
+  }
+
   const state = crypto.randomBytes(16).toString("hex");
 
   const res = NextResponse.redirect(authorizeUrl(provider, redirectUri, state));

@@ -14,6 +14,27 @@ export function isOAuthProvider(p: string): p is OAuthProvider {
   return p === "yandex" || p === "vk";
 }
 
+/**
+ * Канонический origin сайта (без завершающего слэша). Важно, чтобы старт и
+ * callback OAuth использовали ОДИН и тот же origin, иначе redirect_uri не
+ * совпадёт с зарегистрированным Callback URL.
+ *
+ * Приоритет: NEXT_PUBLIC_SITE_URL → заголовки прокси (Vercel) → URL запроса.
+ */
+export function siteOrigin(req: Request): string {
+  const explicit = process.env.NEXT_PUBLIC_SITE_URL;
+  if (explicit) return explicit.replace(/\/+$/, "");
+  const proto = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https";
+  const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
+  if (host) return `${proto}://${host}`;
+  return new URL(req.url).origin;
+}
+
+/** Callback URL для провайдера — ровно его нужно прописать в настройках приложения. */
+export function callbackUrl(req: Request, provider: OAuthProvider): string {
+  return `${siteOrigin(req)}/api/auth/oauth/${provider}/callback`;
+}
+
 interface Creds {
   clientId: string;
   clientSecret: string;

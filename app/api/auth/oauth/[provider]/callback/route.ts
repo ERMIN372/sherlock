@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { exchangeCodeForEmail, isOAuthProvider, oauthEnabled } from "@/lib/oauth";
+import { callbackUrl, exchangeCodeForEmail, isOAuthProvider, oauthEnabled, siteOrigin } from "@/lib/oauth";
 import { ensureOAuthUser } from "@/lib/auth";
 import { SESSION_COOKIE, cookieValueFor, initWallet } from "@/lib/wallet";
 
@@ -20,7 +20,7 @@ function readCookie(req: Request, name: string): string | null {
 export async function GET(req: Request, ctx: { params: Promise<{ provider: string }> }) {
   const { provider } = await ctx.params;
   const url = new URL(req.url);
-  const origin = process.env.NEXT_PUBLIC_SITE_URL || url.origin;
+  const origin = siteOrigin(req);
   const fail = (reason: string) =>
     NextResponse.redirect(`${origin}/?auth_error=${encodeURIComponent(reason)}`);
 
@@ -35,7 +35,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ provider: strin
 
   let email: string | null = null;
   try {
-    const redirectUri = `${origin}/api/auth/oauth/${provider}/callback`;
+    const redirectUri = callbackUrl(req, provider);
     email = await exchangeCodeForEmail(provider, code, redirectUri);
   } catch {
     return fail("exchange");
