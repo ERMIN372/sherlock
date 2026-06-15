@@ -9,6 +9,7 @@ import AcceptableUseGate from "@/components/AcceptableUseGate";
 import LanguageToggle from "@/components/LanguageToggle";
 import { useLocalState } from "@/lib/useLocalState";
 import { useI18n } from "@/lib/i18n";
+import { FREE_CREDITS, SEARCH_COST } from "@/lib/config";
 import {
   resolveMode,
   type HistoryEntry,
@@ -19,7 +20,6 @@ import {
   type SearchStatus,
 } from "@/lib/clientTypes";
 
-const FREE_CREDITS = 3;
 const POLL_INTERVAL_MS = 2000;
 const MAX_POLLS = 90; // ~3 min — testing-mode queues can be long
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -104,7 +104,7 @@ export default function Home() {
 
   const runSearch = useCallback(
     async (blob: Blob, thumbnail: string) => {
-      if (credits <= 0) {
+      if (credits < SEARCH_COST) {
         setShowBuy(true);
         return;
       }
@@ -160,8 +160,8 @@ export default function Home() {
             continue;
           }
 
-          // Done — consume one credit and record results.
-          setCredits((c) => Math.max(0, c - 1));
+          // Done — consume credits for the search and record results.
+          setCredits((c) => Math.max(0, c - SEARCH_COST));
           setProgress(null);
           setItems(poll.items);
           setMode(resolveMode(poll.provider, poll.demo));

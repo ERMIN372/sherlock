@@ -68,7 +68,9 @@ const en: Dict = {
   "time.days": "{n}d ago",
 
   "buy.title": "Get more credits",
-  "buy.subtitle": "Each search costs 1 credit. Pick a pack below.",
+  "buy.subtitle": "Each search costs {n} {plural}. Pick a pack below.",
+  "credits.plural.one": "credit",
+  "credits.plural.other": "credits",
   "buy.credits": "{n} credits",
   "buy.processing": "Processing…",
   "buy.demoNote":
@@ -159,7 +161,10 @@ const ru: Dict = {
   "time.days": "{n} дн назад",
 
   "buy.title": "Пополнить кредиты",
-  "buy.subtitle": "Каждый поиск стоит 1 кредит. Выберите пакет ниже.",
+  "buy.subtitle": "Каждый поиск стоит {n} {plural}. Выберите пакет ниже.",
+  "credits.plural.one": "кредит",
+  "credits.plural.few": "кредита",
+  "credits.plural.many": "кредитов",
   "buy.credits": "{n} кредитов",
   "buy.processing": "Обработка…",
   "buy.demoNote":
