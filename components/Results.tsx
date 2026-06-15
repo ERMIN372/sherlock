@@ -1,6 +1,6 @@
 "use client";
 
-import type { ResultItem, SearchStatus } from "@/lib/clientTypes";
+import type { ResultItem, SearchMode, SearchStatus } from "@/lib/clientTypes";
 import { useI18n } from "@/lib/i18n";
 
 function scoreColor(score: number): string {
@@ -9,7 +9,17 @@ function scoreColor(score: number): string {
   return "text-white/60";
 }
 
-function ResultCard({ item, sourceFallback }: { item: ResultItem; sourceFallback: string }) {
+function ResultCard({
+  item,
+  sourceFallback,
+  showOpenButton,
+  openLabel,
+}: {
+  item: ResultItem;
+  sourceFallback: string;
+  showOpenButton: boolean;
+  openLabel: string;
+}) {
   return (
     <a
       href={item.sourceUrl}
@@ -36,6 +46,11 @@ function ResultCard({ item, sourceFallback }: { item: ResultItem; sourceFallback
         <p className="truncate text-xs text-indigo-300/80 group-hover:text-indigo-200">
           {item.sourceUrl}
         </p>
+        {showOpenButton && (
+          <span className="mt-2 inline-flex items-center gap-1 rounded-lg bg-indigo-500/15 px-2.5 py-1 text-xs font-medium text-indigo-200 group-hover:bg-indigo-500/25">
+            {openLabel} ↗
+          </span>
+        )}
       </div>
     </a>
   );
@@ -45,12 +60,12 @@ interface Props {
   status: SearchStatus;
   items: ResultItem[];
   error: string | null;
-  demo: boolean;
+  mode: SearchMode;
   progress?: number | null;
   onRetry?: () => void;
 }
 
-export default function Results({ status, items, error, demo, progress, onRetry }: Props) {
+export default function Results({ status, items, error, mode, progress, onRetry }: Props) {
   const { t, plural } = useI18n();
 
   if (status === "idle") {
@@ -115,19 +130,35 @@ export default function Results({ status, items, error, demo, progress, onRetry 
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">
           {t("results.heading", { n: items.length, plural: plural(items.length, "results.plural") })}
         </h2>
-        {demo && (
+        {mode === "testing" && (
+          <span className="rounded-full bg-amber-500/15 px-3 py-1 text-xs font-medium text-amber-300">
+            {t("results.testing")}
+          </span>
+        )}
+        {mode === "demo" && (
           <span className="rounded-full bg-amber-500/15 px-3 py-1 text-xs font-medium text-amber-300">
             {t("results.demo")}
           </span>
         )}
       </div>
+      {mode === "testing" && (
+        <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-4 py-3 text-xs leading-relaxed text-amber-200/80">
+          {t("results.testingHint")}
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {items.map((item, i) => (
-          <ResultCard key={`${item.sourceUrl}-${i}`} item={item} sourceFallback={t("results.source")} />
+          <ResultCard
+            key={`${item.sourceUrl}-${i}`}
+            item={item}
+            sourceFallback={t("results.source")}
+            showOpenButton={mode === "testing"}
+            openLabel={t("results.openSource")}
+          />
         ))}
       </div>
     </div>

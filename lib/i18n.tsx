@@ -45,6 +45,10 @@ const en: Dict = {
   "results.empty.sub":
     "We couldn't find visually similar public photos. Try a clearer, front-facing photo.",
   "results.demo": "Demo results",
+  "results.testing": "Testing mode — placeholder photos",
+  "results.testingHint":
+    "In FaceCheck testing mode the matched photos are replaced with placeholders, but the source links are real. Open a link to see the actual person. Turn off testing mode (FACECHECK_TESTING_MODE=false) for real photos.",
+  "results.openSource": "Open source",
   "results.source": "Source",
   "results.heading": "{n} {plural}",
   "results.plural.one": "result",
@@ -125,6 +129,10 @@ const ru: Dict = {
   "results.empty.sub":
     "Не удалось найти визуально похожие публичные фото. Попробуйте более чёткое фото анфас.",
   "results.demo": "Демо-результаты",
+  "results.testing": "Тестовый режим — фото заглушки, ссылки настоящие",
+  "results.testingHint":
+    "В тестовом режиме FaceCheck заменяет фотографии найденных людей на заглушки, но ссылки на источники настоящие. Перейдите по ссылке, чтобы увидеть реального человека. Для реальных фото отключите тестовый режим (FACECHECK_TESTING_MODE=false).",
+  "results.openSource": "Открыть источник",
   "results.source": "Источник",
   "results.heading": "{n} {plural}",
   "results.plural.one": "результат",

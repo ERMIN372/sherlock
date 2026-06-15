@@ -32,3 +32,16 @@ export interface HistoryEntry {
 }
 
 export type SearchStatus = "idle" | "searching" | "success" | "empty" | "error";
+
+/**
+ * Result origin:
+ *  - "live"    — real FaceCheck production results (real photos)
+ *  - "testing" — FaceCheck testing mode (placeholder photos, real links)
+ *  - "demo"    — built-in demo adapter (everything synthetic)
+ */
+export type SearchMode = "live" | "testing" | "demo";
+
+export function resolveMode(provider: string, demo: boolean): SearchMode {
+  if (provider === "demo") return "demo";
+  return demo ? "testing" : "live";
+}

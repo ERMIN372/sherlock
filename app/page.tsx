@@ -9,12 +9,14 @@ import AcceptableUseGate from "@/components/AcceptableUseGate";
 import LanguageToggle from "@/components/LanguageToggle";
 import { useLocalState } from "@/lib/useLocalState";
 import { useI18n } from "@/lib/i18n";
-import type {
-  HistoryEntry,
-  ResultItem,
-  SearchPollResponse,
-  SearchStartResponse,
-  SearchStatus,
+import {
+  resolveMode,
+  type HistoryEntry,
+  type ResultItem,
+  type SearchMode,
+  type SearchPollResponse,
+  type SearchStartResponse,
+  type SearchStatus,
 } from "@/lib/clientTypes";
 
 const FREE_CREDITS = 3;
@@ -39,7 +41,7 @@ export default function Home() {
 
   const [status, setStatus] = useState<SearchStatus>("idle");
   const [items, setItems] = useState<ResultItem[]>([]);
-  const [demo, setDemo] = useState(false);
+  const [mode, setMode] = useState<SearchMode>("demo");
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showBuy, setShowBuy] = useState(false);
@@ -82,7 +84,7 @@ export default function Home() {
           return;
         }
 
-        setDemo(start.demo);
+        setMode(resolveMode(start.provider, start.demo));
 
         // Phase 2 — poll for progress/results.
         for (let attempt = 0; attempt < MAX_POLLS; attempt++) {
@@ -108,7 +110,7 @@ export default function Home() {
           setCredits((c) => Math.max(0, c - 1));
           setProgress(null);
           setItems(poll.items);
-          setDemo(poll.demo);
+          setMode(resolveMode(poll.provider, poll.demo));
 
           const topScore = poll.items.length
             ? Math.max(...poll.items.map((i) => i.score))
@@ -210,7 +212,7 @@ export default function Home() {
             status={status}
             items={items}
             error={error}
-            demo={demo}
+            mode={mode}
             progress={progress}
             onRetry={retry}
           />
