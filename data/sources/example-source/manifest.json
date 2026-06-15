@@ -1,0 +1,6 @@
+{
+  "name": "Example authorized dataset",
+  "consent": true,
+  "note": "Placeholder showing the manifest schema for the AuthorizedDirectorySource adapter. Add records whose 'descriptor' is a 128-number face descriptor you are permitted to index. Empty by default so it contributes nothing until you populate it.",
+  "profiles": []
+}

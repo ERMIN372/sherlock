@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>Sherlock — Face Search</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="dot">🔎</span> sherlock</div>
+      <nav class="nav">
+        <a href="/" class="active">Search</a>
+        <a href="/add.html">Add me</a>
+      </nav>
+    </div>
+
+    <section class="hero">
+      <h1>Find people by their face</h1>
+      <p>Upload a face photo to find matching <strong>public profiles that opted in</strong>. Only consented profiles are searchable.</p>
+      <div class="stat-pill" id="statPill">Loading index…</div>
+    </section>
+
+    <!-- Upload -->
+    <div class="card" id="uploadCard">
+      <div class="drop" id="drop">
+        <div class="emoji">📷</div>
+        <strong>Tap to upload a face photo</strong>
+        <div class="hint">or drag &amp; drop · JPG / PNG · front-facing works best</div>
+      </div>
+      <input type="file" id="file" accept="image/*" class="hidden" />
+
+      <div class="preview" id="preview">
+        <img id="previewImg" alt="preview" />
+        <div class="face-status busy" id="faceStatus">Detecting face…</div>
+      </div>
+
+      <div style="margin-top:16px; display:flex; gap:10px;">
+        <button class="btn yellow" id="searchBtn" disabled>Search faces</button>
+      </div>
+    </div>
+
+    <!-- Scanning -->
+    <div class="card scanning" id="scanning">
+      <div class="radar"></div>
+      <p id="scanText">Scanning consented profiles…</p>
+    </div>
+
+    <!-- Results -->
+    <div id="resultsWrap" class="hidden">
+      <div class="result-head">
+        <h2>Matches</h2>
+        <span id="resultMeta"></span>
+      </div>
+      <div id="results"></div>
+      <button class="btn ghost" id="againBtn">Search another photo</button>
+    </div>
+
+    <p class="note">
+      This tool only searches people who chose to be found.
+      Want to be discoverable? <a href="/add.html">Add yourself →</a>
+    </p>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="/js/vendor/face-api.js"></script>
+  <script src="/js/face.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
