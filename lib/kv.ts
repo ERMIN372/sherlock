@@ -74,13 +74,21 @@ class MemoryStore implements KvStore {
   }
 }
 
+/** REST URL/токен Upstash. Поддерживаем имена и Vercel KV, и Upstash-интеграции. */
+function kvUrl(): string | undefined {
+  return process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+}
+function kvToken(): string | undefined {
+  return process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+}
+
 let store: KvStore | null = null;
 let warned = false;
 
 export function kv(): KvStore {
   if (store) return store;
-  const url = process.env.KV_REST_API_URL;
-  const token = process.env.KV_REST_API_TOKEN;
+  const url = kvUrl();
+  const token = kvToken();
   if (url && token) {
     store = new UpstashStore(url, token);
   } else {
@@ -96,5 +104,5 @@ export function kv(): KvStore {
 }
 
 export function kvConfigured(): boolean {
-  return Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+  return Boolean(kvUrl() && kvToken());
 }
