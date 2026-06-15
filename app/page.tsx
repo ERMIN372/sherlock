@@ -12,11 +12,15 @@ import { useI18n } from "@/lib/i18n";
 import type {
   HistoryEntry,
   ResultItem,
-  SearchResponse,
+  SearchPollResponse,
+  SearchStartResponse,
   SearchStatus,
 } from "@/lib/clientTypes";
 
 const FREE_CREDITS = 3;
+const POLL_INTERVAL_MS = 2000;
+const MAX_POLLS = 90; // ~3 min — testing-mode queues can be long
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export default function Home() {
   const { t } = useI18n();
@@ -36,6 +40,7 @@ export default function Home() {
   const [status, setStatus] = useState<SearchStatus>("idle");
   const [items, setItems] = useState<ResultItem[]>([]);
   const [demo, setDemo] = useState(false);
+  const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showBuy, setShowBuy] = useState(false);
   const [lastBlob, setLastBlob] = useState<Blob | null>(null);
@@ -51,53 +56,83 @@ export default function Home() {
       setStatus("searching");
       setError(null);
       setItems([]);
+      setProgress(null);
 
-      const form = new FormData();
-      form.append("image", blob, "query.jpg");
+      const fail = (code?: string, retryAfter?: number) => {
+        if (code === "rate_limited") {
+          setError(t("search.err.rate_limited", { n: retryAfter ?? 60 }));
+        } else {
+          setError(t(`search.err.${code || "provider_error"}`));
+        }
+        setStatus("error");
+      };
 
       try {
-        const res = await fetch("/api/search", { method: "POST", body: form });
-        const data = (await res.json()) as SearchResponse & {
+        // Phase 1 — start the search (uploads the image, returns a handle).
+        const form = new FormData();
+        form.append("image", blob, "query.jpg");
+        const startRes = await fetch("/api/search", { method: "POST", body: form });
+        const start = (await startRes.json()) as SearchStartResponse & {
           error?: string;
           code?: string;
           retryAfter?: number;
         };
-
-        if (!res.ok) {
-          if (data.code === "rate_limited") {
-            setError(t("search.err.rate_limited", { n: data.retryAfter ?? 60 }));
-          } else {
-            const key = `search.err.${data.code || "provider_error"}`;
-            setError(t(key));
-          }
-          setStatus("error");
+        if (!startRes.ok) {
+          fail(start.code, start.retryAfter);
           return;
         }
 
-        // Successful search consumes one credit.
-        setCredits((c) => Math.max(0, c - 1));
+        setDemo(start.demo);
 
-        setItems(data.items);
-        setDemo(data.demo);
-        const topScore = data.items.length
-          ? Math.max(...data.items.map((i) => i.score))
-          : null;
+        // Phase 2 — poll for progress/results.
+        for (let attempt = 0; attempt < MAX_POLLS; attempt++) {
+          await sleep(POLL_INTERVAL_MS);
+          const pollRes = await fetch(
+            `/api/search?id=${encodeURIComponent(start.searchId)}`,
+          );
+          const poll = (await pollRes.json()) as SearchPollResponse & {
+            error?: string;
+            code?: string;
+          };
+          if (!pollRes.ok) {
+            fail(poll.code);
+            return;
+          }
 
-        setHistory((prev) =>
-          [
-            {
-              id: crypto.randomUUID(),
-              date: Date.now(),
-              thumbnail,
-              resultCount: data.items.length,
-              topScore,
-              demo: data.demo,
-            },
-            ...prev,
-          ].slice(0, 20),
-        );
+          if (poll.status === "pending") {
+            setProgress(poll.progress);
+            continue;
+          }
 
-        setStatus(data.items.length ? "success" : "empty");
+          // Done — consume one credit and record results.
+          setCredits((c) => Math.max(0, c - 1));
+          setProgress(null);
+          setItems(poll.items);
+          setDemo(poll.demo);
+
+          const topScore = poll.items.length
+            ? Math.max(...poll.items.map((i) => i.score))
+            : null;
+          setHistory((prev) =>
+            [
+              {
+                id: crypto.randomUUID(),
+                date: Date.now(),
+                thumbnail,
+                resultCount: poll.items.length,
+                topScore,
+                demo: poll.demo,
+              },
+              ...prev,
+            ].slice(0, 20),
+          );
+
+          setStatus(poll.items.length ? "success" : "empty");
+          return;
+        }
+
+        // Exhausted polling budget.
+        fail("timeout");
       } catch {
         setError(t("search.err.network"));
         setStatus("error");
@@ -176,6 +211,7 @@ export default function Home() {
             items={items}
             error={error}
             demo={demo}
+            progress={progress}
             onRetry={retry}
           />
         </section>

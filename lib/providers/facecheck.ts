@@ -14,14 +14,13 @@
 import {
   FaceSearchError,
   type FaceSearchInput,
-  type FaceSearchOutcome,
+  type FaceSearchPoll,
   type FaceSearchProvider,
   type FaceSearchResultItem,
+  type FaceSearchStart,
 } from "./types";
 
 const BASE_URL = process.env.FACECHECK_API_URL || "https://facecheck.id";
-const MAX_POLLS = 60; // ~ up to 60 * 2s = 2 min
-const POLL_INTERVAL_MS = 2000;
 
 interface FaceCheckItem {
   guid: string;
@@ -29,10 +28,6 @@ interface FaceCheckItem {
   group?: number;
   base64?: string;
   url?: string;
-}
-
-function sleep(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
 }
 
 function hostLabel(url: string): string {
@@ -61,14 +56,64 @@ export class FaceCheckProvider implements FaceSearchProvider {
     };
   }
 
-  async search(input: FaceSearchInput): Promise<FaceSearchOutcome> {
-    const idSearch = await this.upload(input);
-    const items = await this.poll(idSearch);
+  async start(input: FaceSearchInput): Promise<FaceSearchStart> {
+    const searchId = await this.upload(input);
+    return { searchId, provider: this.id, demo: this.testingMode };
+  }
+
+  async poll(searchId: string): Promise<FaceSearchPoll> {
+    let res: Response;
+    try {
+      res = await fetch(`${BASE_URL}/api/search`, {
+        method: "POST",
+        headers: this.headers({ "content-type": "application/json" }),
+        body: JSON.stringify({
+          id_search: searchId,
+          with_progress: true,
+          status_only: false,
+          demo: this.testingMode,
+        }),
+      });
+    } catch {
+      throw new FaceSearchError("Lost connection to FaceCheck.ID", "provider_error");
+    }
+
+    const data = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      message?: string;
+      progress?: number;
+      output?: { items?: FaceCheckItem[] };
+    };
+
+    if (data.error) {
+      const msg = (data.message || data.error || "").toLowerCase();
+      if (msg.includes("no face") || msg.includes("face not")) {
+        throw new FaceSearchError(
+          "No face was detected in the uploaded image.",
+          "no_face",
+          422,
+        );
+      }
+      throw new FaceSearchError(
+        data.message || data.error!,
+        res.status === 429 ? "rate_limited" : "provider_error",
+        res.status === 429 ? 429 : 502,
+      );
+    }
+
+    if (data.output?.items) {
+      return {
+        status: "done",
+        items: data.output.items.map(this.mapItem),
+        provider: this.id,
+        demo: this.testingMode,
+      };
+    }
 
     return {
-      items: items.map(this.mapItem),
-      provider: this.id,
-      demo: this.testingMode,
+      status: "pending",
+      progress: typeof data.progress === "number" ? data.progress : 0,
+      message: data.message,
     };
   }
 
@@ -115,52 +160,5 @@ export class FaceCheckProvider implements FaceSearchProvider {
       throw new FaceSearchError("No search id returned by provider", "provider_error");
     }
     return data.id_search;
-  }
-
-  private async poll(idSearch: string): Promise<FaceCheckItem[]> {
-    for (let attempt = 0; attempt < MAX_POLLS; attempt++) {
-      let res: Response;
-      try {
-        res = await fetch(`${BASE_URL}/api/search`, {
-          method: "POST",
-          headers: this.headers({ "content-type": "application/json" }),
-          body: JSON.stringify({
-            id_search: idSearch,
-            with_progress: true,
-            status_only: false,
-            demo: this.testingMode,
-          }),
-        });
-      } catch {
-        throw new FaceSearchError("Lost connection to FaceCheck.ID", "provider_error");
-      }
-
-      const data = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        message?: string;
-        progress?: number;
-        output?: { items?: FaceCheckItem[] };
-      };
-
-      if (data.error) {
-        const msg = (data.message || data.error || "").toLowerCase();
-        if (msg.includes("no face") || msg.includes("face not")) {
-          throw new FaceSearchError(
-            "No face was detected in the uploaded image.",
-            "no_face",
-            422,
-          );
-        }
-        throw new FaceSearchError(data.message || data.error!, "provider_error");
-      }
-
-      if (data.output?.items) {
-        return data.output.items;
-      }
-
-      await sleep(POLL_INTERVAL_MS);
-    }
-
-    throw new FaceSearchError("Search timed out, please try again.", "timeout", 504);
   }
 }

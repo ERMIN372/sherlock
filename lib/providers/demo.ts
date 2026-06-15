@@ -11,10 +11,14 @@
 import crypto from "node:crypto";
 import {
   type FaceSearchInput,
-  type FaceSearchOutcome,
+  type FaceSearchPoll,
   type FaceSearchProvider,
   type FaceSearchResultItem,
+  type FaceSearchStart,
 } from "./types";
+
+/** How long the demo pretends to "search" before returning results. */
+const DEMO_DURATION_MS = 1500;
 
 const DEMO_SOURCES = [
   { host: "example-social.test", path: "/u/" },
@@ -48,15 +52,40 @@ export class DemoProvider implements FaceSearchProvider {
   readonly id = "demo";
   readonly isDemo = true;
 
-  async search(input: FaceSearchInput): Promise<FaceSearchOutcome> {
-    // Seed off the image bytes so the same photo yields stable results.
+  async start(input: FaceSearchInput): Promise<FaceSearchStart> {
+    // Seed off the image bytes so the same photo yields stable results, and
+    // embed a start timestamp so poll() can simulate progress without any
+    // server-side state (works on stateless serverless).
     const seed = crypto.createHash("sha1").update(input.bytes).digest("hex");
+    return {
+      searchId: `demo:${seed}:${Date.now()}`,
+      provider: this.id,
+      demo: true,
+    };
+  }
 
-    // Simulate provider processing latency.
-    await new Promise((r) => setTimeout(r, 1200));
+  async poll(searchId: string): Promise<FaceSearchPoll> {
+    const [, seed, startedAt] = searchId.split(":");
+    const elapsed = Date.now() - Number(startedAt || 0);
 
+    if (elapsed < DEMO_DURATION_MS) {
+      return {
+        status: "pending",
+        progress: Math.min(95, Math.round((elapsed / DEMO_DURATION_MS) * 100)),
+      };
+    }
+
+    return {
+      status: "done",
+      items: this.buildItems(seed || "0"),
+      provider: this.id,
+      demo: true,
+    };
+  }
+
+  private buildItems(seed: string): FaceSearchResultItem[] {
     const count = 3 + (parseInt(seed.slice(0, 2), 16) % 4); // 3-6 results
-    const items: FaceSearchResultItem[] = Array.from({ length: count }, (_, i) => {
+    return Array.from({ length: count }, (_, i) => {
       const src = DEMO_SOURCES[(parseInt(seed.slice(i * 2, i * 2 + 2), 16) + i) % DEMO_SOURCES.length];
       const userId = seed.slice(i * 4, i * 4 + 8);
       // Descending plausible similarity scores.
@@ -68,7 +97,5 @@ export class DemoProvider implements FaceSearchProvider {
         source: src.host,
       };
     });
-
-    return { items, provider: this.id, demo: true };
   }
 }

@@ -3,14 +3,32 @@ import { getProvider, FaceSearchError } from "@/lib/providers";
 import { checkRateLimit, clientKey } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
-// Searches can take a while (provider polling); allow a generous budget.
-export const maxDuration = 120;
+// Each phase is short (one provider round-trip), so a modest budget is plenty.
+export const maxDuration = 30;
 
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
+function errorResponse(err: unknown) {
+  if (err instanceof FaceSearchError) {
+    return NextResponse.json(
+      { error: err.message, code: err.code },
+      { status: err.status },
+    );
+  }
+  console.error("face search failed:", err);
+  return NextResponse.json(
+    { error: "Search failed unexpectedly.", code: "provider_error" },
+    { status: 502 },
+  );
+}
+
+/**
+ * Phase 1 — start a search.
+ * Validates and uploads the image to the provider, returns a search handle.
+ * The image is held only in memory for this request and never written to disk.
+ */
 export async function POST(req: Request) {
-  // 1. Rate limit per client.
   const rl = checkRateLimit(clientKey(req));
   if (!rl.allowed) {
     const retryAfter = Math.max(1, Math.ceil((rl.resetAt - Date.now()) / 1000));
@@ -20,7 +38,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // 2. Parse the multipart upload.
   let file: File | null = null;
   try {
     const form = await req.formData();
@@ -52,13 +69,11 @@ export async function POST(req: Request) {
     );
   }
 
-  // 3. Hold bytes only in memory for the duration of the request — never
-  //    written to disk. They are eligible for GC as soon as the call returns.
+  // Hold bytes only in memory for the duration of the upload — never on disk.
   let bytes = Buffer.from(await file.arrayBuffer());
-
   try {
     const provider = getProvider();
-    const outcome = await provider.search({
+    const started = await provider.start({
       bytes,
       mimeType: file.type,
       fileName: file.name || "query.jpg",
@@ -66,28 +81,54 @@ export async function POST(req: Request) {
 
     return NextResponse.json(
       {
-        provider: outcome.provider,
-        demo: outcome.demo,
-        count: outcome.items.length,
-        items: outcome.items,
+        searchId: started.searchId,
+        provider: started.provider,
+        demo: started.demo,
         rateLimit: { remaining: rl.remaining, limit: rl.limit },
       },
       { status: 200 },
     );
   } catch (err) {
-    if (err instanceof FaceSearchError) {
+    return errorResponse(err);
+  } finally {
+    // Explicitly drop the in-memory image after upload completes.
+    bytes = Buffer.alloc(0);
+  }
+}
+
+/**
+ * Phase 2 — poll a running search.
+ * GET /api/search?id=<searchId> -> { status: "pending", progress }
+ *                                | { status: "done", items, count, provider, demo }
+ */
+export async function GET(req: Request) {
+  const id = new URL(req.url).searchParams.get("id");
+  if (!id) {
+    return NextResponse.json(
+      { error: "Missing search id.", code: "bad_request" },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const result = await getProvider().poll(id);
+    if (result.status === "pending") {
       return NextResponse.json(
-        { error: err.message, code: err.code },
-        { status: err.status },
+        { status: "pending", progress: result.progress, message: result.message },
+        { status: 200 },
       );
     }
-    console.error("face search failed:", err);
     return NextResponse.json(
-      { error: "Search failed unexpectedly.", code: "provider_error" },
-      { status: 502 },
+      {
+        status: "done",
+        provider: result.provider,
+        demo: result.demo,
+        count: result.items.length,
+        items: result.items,
+      },
+      { status: 200 },
     );
-  } finally {
-    // 4. Explicitly drop the in-memory image after the search completes.
-    bytes = Buffer.alloc(0);
+  } catch (err) {
+    return errorResponse(err);
   }
 }

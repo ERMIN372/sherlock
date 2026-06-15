@@ -41,16 +41,37 @@ async function main() {
   }).then((r) => r.json());
   check("payment purchase", pay.success === true, `granted=${pay.granted}`);
 
-  // search
+  // search — phase 1: start
   const fd = new FormData();
   const bytes = Uint8Array.from(Buffer.from(JPEG_B64, "base64"));
   fd.append("image", new Blob([bytes], { type: "image/jpeg" }), "face.jpg");
-  const searchRes = await fetch(`${BASE}/api/search`, { method: "POST", body: fd });
-  const search = await searchRes.json();
+  const startRes = await fetch(`${BASE}/api/search`, { method: "POST", body: fd });
+  const start = await startRes.json();
   check(
-    "search responds",
-    searchRes.ok,
-    searchRes.ok ? `provider=${search.provider} count=${search.count}` : `status ${searchRes.status}`,
+    "search starts",
+    startRes.ok && !!start.searchId,
+    startRes.ok ? `provider=${start.provider} demo=${start.demo}` : `status ${startRes.status}`,
+  );
+
+  // search — phase 2: poll to completion
+  let done = null;
+  for (let i = 0; i < 30 && start.searchId; i++) {
+    await new Promise((r) => setTimeout(r, 1000));
+    const pollRes = await fetch(`${BASE}/api/search?id=${encodeURIComponent(start.searchId)}`);
+    const poll = await pollRes.json();
+    if (!pollRes.ok) {
+      done = { error: poll.code };
+      break;
+    }
+    if (poll.status === "done") {
+      done = poll;
+      break;
+    }
+  }
+  check(
+    "search completes",
+    done && done.status === "done",
+    done && done.status === "done" ? `count=${done.count}` : `result=${JSON.stringify(done)}`,
   );
 
   // validation: wrong type
@@ -58,6 +79,10 @@ async function main() {
   badFd.append("image", new Blob(["not an image"], { type: "text/plain" }), "x.txt");
   const bad = await fetch(`${BASE}/api/search`, { method: "POST", body: badFd });
   check("rejects bad file type", bad.status === 400, `status ${bad.status}`);
+
+  // poll without id
+  const noId = await fetch(`${BASE}/api/search`);
+  check("poll requires id", noId.status === 400, `status ${noId.status}`);
 
   console.log(failures === 0 ? "\nAll checks passed." : `\n${failures} check(s) failed.`);
   process.exit(failures === 0 ? 0 : 1);
