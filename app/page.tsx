@@ -90,7 +90,7 @@ export default function Home() {
     if (auth === "ok") {
       refreshWallet();
     } else if (authError) {
-      setPayNotice({ type: "error", text: t("auth.oauthError") });
+      setPayNotice({ type: "error", text: `${t("auth.oauthError")} (${authError})` });
     }
   }, [refreshWallet, t]);
 

@@ -21,23 +21,30 @@ export async function GET(req: Request, ctx: { params: Promise<{ provider: strin
   const { provider } = await ctx.params;
   const url = new URL(req.url);
   const origin = siteOrigin(req);
-  const fail = (reason: string) =>
-    NextResponse.redirect(`${origin}/?auth_error=${encodeURIComponent(reason)}`);
+  const fail = (reason: string) => {
+    console.error(`[oauth:${provider}] callback failed: ${reason}`);
+    return NextResponse.redirect(`${origin}/?auth_error=${encodeURIComponent(reason)}`);
+  };
 
   if (!isOAuthProvider(provider) || !oauthEnabled(provider)) return fail("provider");
+
+  // Провайдер может вернуть собственную ошибку (например, отказ в доступе).
+  const providerError = url.searchParams.get("error");
+  if (providerError) return fail(`provider_error:${providerError}`);
 
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const stateCookie = readCookie(req, STATE_COOKIE);
   if (!code || !state || stateCookie !== `${provider}:${state}`) {
-    return fail("state");
+    return fail(stateCookie ? "state_mismatch" : "state_missing");
   }
 
   let email: string | null = null;
   try {
     const redirectUri = callbackUrl(req, provider);
     email = await exchangeCodeForEmail(provider, code, redirectUri);
-  } catch {
+  } catch (e) {
+    console.error(`[oauth:${provider}] exchange threw:`, e);
     return fail("exchange");
   }
   if (!email) return fail("no_email");

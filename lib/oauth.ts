@@ -98,16 +98,32 @@ export async function exchangeCodeForEmail(
         client_secret: c.clientSecret,
       }),
     });
-    const token = (await tokenRes.json().catch(() => ({}))) as { access_token?: string };
-    if (!token.access_token) return null;
+    const tokenText = await tokenRes.text();
+    let token: { access_token?: string } = {};
+    try {
+      token = JSON.parse(tokenText);
+    } catch {
+      /* ignore */
+    }
+    if (!token.access_token) {
+      console.error(`[oauth:yandex] token error (${tokenRes.status}): ${tokenText.slice(0, 300)}`);
+      return null;
+    }
     const infoRes = await fetch("https://login.yandex.ru/info?format=json", {
       headers: { Authorization: `OAuth ${token.access_token}` },
     });
-    const info = (await infoRes.json().catch(() => ({}))) as {
-      default_email?: string;
-      emails?: string[];
-    };
-    return info.default_email || info.emails?.[0] || null;
+    const infoText = await infoRes.text();
+    let info: { default_email?: string; emails?: string[] } = {};
+    try {
+      info = JSON.parse(infoText);
+    } catch {
+      /* ignore */
+    }
+    const email = info.default_email || info.emails?.[0] || null;
+    if (!email) {
+      console.error(`[oauth:yandex] no email in info (${infoRes.status}): ${infoText.slice(0, 300)}`);
+    }
+    return email;
   }
 
   // VK: email возвращается прямо в ответе token-эндпоинта (если выдан scope email).
