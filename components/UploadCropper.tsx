@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import Cropper, { type Area } from "react-easy-crop";
 import { getCroppedBlob, type PixelCrop } from "@/lib/cropImage";
+import { useI18n } from "@/lib/i18n";
 
 interface Props {
   disabled?: boolean;
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export default function UploadCropper({ disabled, onSearch }: Props) {
+  const { t } = useI18n();
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -22,11 +24,11 @@ export default function UploadCropper({ disabled, onSearch }: Props) {
     setError(null);
     if (!file) return;
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      setError("Please choose a JPEG, PNG or WebP image.");
+      setError(t("upload.errFormat"));
       return;
     }
     if (file.size > 8 * 1024 * 1024) {
-      setError("Image is too large (max 8 MB).");
+      setError(t("upload.errSize"));
       return;
     }
     const reader = new FileReader();
@@ -36,7 +38,7 @@ export default function UploadCropper({ disabled, onSearch }: Props) {
       setZoom(1);
     };
     reader.readAsDataURL(file);
-  }, []);
+  }, [t]);
 
   const onCropComplete = useCallback((_: Area, areaPixels: Area) => {
     setPixels(areaPixels);
@@ -54,7 +56,7 @@ export default function UploadCropper({ disabled, onSearch }: Props) {
       const { blob, thumbnail } = await getCroppedBlob(imageSrc, pixels);
       onSearch(blob, thumbnail);
     } catch {
-      setError("Could not process the image. Try another photo.");
+      setError(t("upload.errProcess"));
     }
   };
 
@@ -82,8 +84,8 @@ export default function UploadCropper({ disabled, onSearch }: Props) {
           <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-500/20 text-2xl">
             🔍
           </div>
-          <p className="text-base font-medium">Drop a photo here, or click to upload</p>
-          <p className="mt-1 text-sm text-white/50">JPEG, PNG or WebP · up to 8 MB</p>
+          <p className="text-base font-medium">{t("upload.dropzone")}</p>
+          <p className="mt-1 text-sm text-white/50">{t("upload.formats")}</p>
         </div>
         <input
           ref={inputRef}
@@ -114,7 +116,7 @@ export default function UploadCropper({ disabled, onSearch }: Props) {
       </div>
 
       <div className="mt-4 flex items-center gap-3">
-        <span className="text-sm text-white/60">Zoom</span>
+        <span className="text-sm text-white/60">{t("upload.zoom")}</span>
         <input
           type="range"
           min={1}
@@ -134,20 +136,17 @@ export default function UploadCropper({ disabled, onSearch }: Props) {
           disabled={disabled}
           className="flex-1 rounded-xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Search this face
+          {t("upload.search")}
         </button>
         <button
           onClick={reset}
           disabled={disabled}
           className="rounded-xl border border-white/15 px-4 py-3 text-sm font-medium text-white/80 transition hover:bg-white/5 disabled:opacity-50"
         >
-          Choose another
+          {t("upload.another")}
         </button>
       </div>
-      <p className="mt-2 text-xs text-white/40">
-        Position the face inside the circle. The cropped image is sent for this
-        search only and is not stored on our servers.
-      </p>
+      <p className="mt-2 text-xs text-white/40">{t("upload.hint")}</p>
     </div>
   );
 }

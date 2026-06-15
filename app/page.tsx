@@ -6,7 +6,9 @@ import Results from "@/components/Results";
 import HistoryPanel from "@/components/HistoryPanel";
 import BuyCreditsModal from "@/components/BuyCreditsModal";
 import AcceptableUseGate from "@/components/AcceptableUseGate";
+import LanguageToggle from "@/components/LanguageToggle";
 import { useLocalState } from "@/lib/useLocalState";
+import { useI18n } from "@/lib/i18n";
 import type {
   HistoryEntry,
   ResultItem,
@@ -17,6 +19,7 @@ import type {
 const FREE_CREDITS = 3;
 
 export default function Home() {
+  const { t } = useI18n();
   const [credits, setCredits, creditsReady] = useLocalState<number>(
     "sherlock_credits",
     FREE_CREDITS,
@@ -62,11 +65,10 @@ export default function Home() {
 
         if (!res.ok) {
           if (data.code === "rate_limited") {
-            setError(
-              `Rate limit reached. Try again in ${data.retryAfter ?? 60}s.`,
-            );
+            setError(t("search.err.rate_limited", { n: data.retryAfter ?? 60 }));
           } else {
-            setError(data.error || "Something went wrong.");
+            const key = `search.err.${data.code || "provider_error"}`;
+            setError(t(key));
           }
           setStatus("error");
           return;
@@ -97,11 +99,11 @@ export default function Home() {
 
         setStatus(data.items.length ? "success" : "empty");
       } catch {
-        setError("Network error. Please check your connection and retry.");
+        setError(t("search.err.network"));
         setStatus("error");
       }
     },
-    [credits, setCredits, setHistory],
+    [credits, setCredits, setHistory, t],
   );
 
   const handleSearch = useCallback(
@@ -134,37 +136,33 @@ export default function Home() {
           <h1 className="flex items-center gap-2 text-2xl font-bold sm:text-3xl">
             <span className="text-indigo-400">🔎</span> Sherlock
           </h1>
-          <p className="mt-1 text-sm text-white/50">
-            AI Face Search across public web sources
-          </p>
+          <p className="mt-1 text-sm text-white/50">{t("app.tagline")}</p>
         </div>
         <div className="flex items-center gap-3">
+          <LanguageToggle />
           <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm">
-            <span className="text-white/50">Credits</span>{" "}
+            <span className="text-white/50">{t("credits.label")}</span>{" "}
             <span className="font-semibold text-indigo-300">{credits}</span>
           </div>
           <button
             onClick={() => setShowBuy(true)}
             className="rounded-xl bg-indigo-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-400"
           >
-            Buy credits
+            {t("buyCredits")}
           </button>
         </div>
       </header>
 
       {/* Acceptable use banner */}
       <div className="mb-6 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-4 py-3 text-xs leading-relaxed text-amber-200/80">
-        ⚠️ Use responsibly. Only search faces you are authorized to search.
-        Stalking, harassment, or surveillance is prohibited. Results come from a
-        third-party Face Search API; we don&apos;t scrape platforms or store your
-        uploads.
+        {t("banner.warning")}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_1.1fr]">
         {/* Left column: upload + history */}
         <div className="space-y-6">
           <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-            <h2 className="mb-4 text-lg font-semibold">Upload a face</h2>
+            <h2 className="mb-4 text-lg font-semibold">{t("upload.title")}</h2>
             <UploadCropper disabled={searching} onSearch={handleSearch} />
           </section>
 
@@ -184,8 +182,7 @@ export default function Home() {
       </div>
 
       <footer className="mt-12 border-t border-white/10 pt-6 text-center text-xs text-white/30">
-        Sherlock MVP · Face search powered by a third-party API · For lawful,
-        authorized use only.
+        {t("footer")}
       </footer>
     </main>
   );
