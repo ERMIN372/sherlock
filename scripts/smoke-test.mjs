@@ -33,13 +33,13 @@ async function main() {
   const packs = await fetch(`${BASE}/api/payment`).then((r) => r.json());
   check("payment packs", Array.isArray(packs.packs) && packs.packs.length > 0);
 
-  // payment purchase (demo)
-  const pay = await fetch(`${BASE}/api/payment`, {
+  // payment checkout (demo fallback when Stripe is not configured)
+  const pay = await fetch(`${BASE}/api/payment/checkout`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ packId: "plus" }),
   }).then((r) => r.json());
-  check("payment purchase", pay.success === true, `granted=${pay.granted}`);
+  check("payment checkout", pay.mode === "demo" && pay.granted > 0, `granted=${pay.granted}`);
 
   // search — phase 1: start
   const fd = new FormData();
